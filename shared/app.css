@@ -1,0 +1,204 @@
+/* ひらめきシリーズ Web版 共通スタイル
+   JACK方針: 文字は最初から大きく太く、明るい配色 */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --fg: #ffffff;
+  --fg-sub: rgba(255, 255, 255, 0.72);
+  --card-bg: rgba(255, 255, 255, 0.10);
+  --card-border: rgba(255, 255, 255, 0.18);
+  --accent: #4da3ff;
+  --ok: #34d399;
+  --ng: #f87171;
+  --gold: #fbbf24;
+}
+
+html { font-size: 18px; }
+body {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+  color: var(--fg);
+  min-height: 100vh;
+  background: #0a0a12;
+  overflow-x: hidden;
+}
+
+/* ===== テーマ背景 ===== */
+.bg { position: fixed; inset: 0; z-index: -1; }
+.bg .blob { position: absolute; border-radius: 50%; filter: blur(75px); }
+
+body.theme-night .bg {
+  background:
+    radial-gradient(600px 400px at 50% 0%, rgba(102, 77, 204, 0.35), transparent 70%),
+    linear-gradient(180deg, rgba(51, 26, 89, 0.55) 0%, rgba(89, 38, 128, 0.30) 35%, rgba(128, 51, 153, 0.22) 65%, rgba(38, 13, 64, 0.5) 100%),
+    #0a0a12;
+}
+body.theme-night .bg .b1 { width: 380px; height: 380px; background: rgba(77, 38, 153, 0.45); left: -120px; top: 40px; }
+body.theme-night .bg .b2 { width: 360px; height: 360px; background: rgba(89, 51, 128, 0.5); right: -110px; bottom: -60px; }
+
+body.theme-festive .bg {
+  background:
+    radial-gradient(600px 400px at 50% 0%, rgba(204, 26, 26, 0.4), transparent 70%),
+    linear-gradient(180deg, rgba(199, 23, 26, 0.42) 0%, rgba(230, 71, 38, 0.20) 35%, rgba(247, 235, 204, 0.06) 65%, rgba(217, 153, 46, 0.38) 100%),
+    #12080a;
+}
+body.theme-festive .bg .b1 { width: 380px; height: 380px; background: rgba(209, 31, 31, 0.45); left: -120px; top: 40px; }
+body.theme-festive .bg .b2 { width: 360px; height: 360px; background: rgba(219, 163, 46, 0.5); right: -110px; bottom: -60px; }
+body.theme-festive { --accent: #ffb84d; }
+
+/* ===== レイアウト ===== */
+.wrap { max-width: 640px; margin: 0 auto; padding: 20px 18px 90px; }
+
+.topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.topbar .back {
+  font-size: 1.05rem; font-weight: 700; color: var(--accent);
+  background: none; border: none; cursor: pointer; padding: 8px 4px;
+}
+.topbar h1 { font-size: 1.5rem; font-weight: 800; }
+.topbar .sub { font-size: 0.95rem; color: var(--fg-sub); font-weight: 600; }
+
+.hero { text-align: center; padding: 26px 0 20px; }
+.hero .app-icon { font-size: 3.4rem; }
+.hero h1 { font-size: 2.1rem; font-weight: 900; letter-spacing: 0.02em; margin-top: 6px; }
+.hero p { font-size: 1.1rem; font-weight: 600; color: var(--fg-sub); margin-top: 10px; line-height: 1.7; }
+
+/* ===== カード/ボタン ===== */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 20px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.menu { display: grid; gap: 14px; margin-top: 10px; }
+.menu-item {
+  display: flex; align-items: center; gap: 16px; width: 100%;
+  text-align: left; cursor: pointer; color: var(--fg);
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 20px; padding: 20px;
+  transition: transform 0.08s ease;
+}
+.menu-item:active { transform: scale(0.98); }
+.menu-item .icon { font-size: 2.2rem; }
+.menu-item .t { font-size: 1.25rem; font-weight: 800; }
+.menu-item .d { font-size: 0.95rem; font-weight: 600; color: var(--fg-sub); margin-top: 3px; line-height: 1.5; }
+.menu-item .chev { margin-left: auto; color: var(--fg-sub); font-size: 1.3rem; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 1.1rem; font-weight: 800; color: #fff; white-space: nowrap;
+  background: var(--accent); border: none; border-radius: 14px;
+  padding: 16px 10px; cursor: pointer; width: 100%;
+  transition: transform 0.08s ease, opacity 0.15s;
+}
+body.theme-festive .btn { color: #341303; }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.ghost { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--fg); }
+.btn.ok { background: var(--ok); color: #062b1c; }
+.btn.ng { background: var(--ng); color: #3d0606; }
+.btn.small { font-size: 1rem; padding: 12px 16px; width: auto; }
+
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+
+/* ===== セグメント ===== */
+.seg { display: flex; background: rgba(255,255,255,0.08); border-radius: 14px; padding: 4px; gap: 4px; }
+.seg button {
+  flex: 1; font-size: 1rem; font-weight: 700; color: var(--fg-sub);
+  background: none; border: none; border-radius: 11px; padding: 11px 6px; cursor: pointer;
+}
+.seg button.on { background: var(--accent); color: #fff; }
+body.theme-festive .seg button.on { color: #341303; }
+
+/* ===== 単語カード ===== */
+.vocab-card {
+  min-height: 380px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  cursor: pointer; padding: 28px 20px;
+}
+.vocab-card .word { font-size: 3rem; font-weight: 900; line-height: 1.2; word-break: break-word; }
+.vocab-card .pinyin { font-size: 1.35rem; font-weight: 700; color: var(--gold); margin-top: 10px; }
+.vocab-card .hint { font-size: 1rem; font-weight: 600; color: var(--fg-sub); margin-top: 26px; }
+.vocab-card .meaning { font-size: 1.7rem; font-weight: 800; margin-top: 20px; color: var(--ok); }
+.vocab-card .example { font-size: 1.15rem; font-weight: 700; margin-top: 18px; line-height: 1.7; }
+.vocab-card .example-p { font-size: 0.98rem; font-weight: 600; color: var(--gold); margin-top: 6px; line-height: 1.6; }
+.vocab-card .example-ja { font-size: 1.02rem; font-weight: 600; color: var(--fg-sub); margin-top: 8px; line-height: 1.7; }
+
+.progress-line { display: flex; justify-content: space-between; align-items: center; font-size: 1rem; font-weight: 700; color: var(--fg-sub); margin: 14px 2px; }
+.progress-line .learned { color: var(--ok); }
+
+/* ===== クイズ ===== */
+.quiz-q { font-size: 2.1rem; font-weight: 900; text-align: center; padding: 26px 10px; }
+.quiz-p { font-size: 1.2rem; font-weight: 700; text-align: center; color: var(--gold); margin-top: -14px; padding-bottom: 12px; }
+.quiz-opts { display: grid; gap: 12px; }
+.quiz-opts .btn { background: var(--card-bg); border: 1px solid var(--card-border); color: var(--fg); }
+.quiz-opts .btn.correct { background: var(--ok); color: #062b1c; }
+.quiz-opts .btn.wrong { background: var(--ng); color: #3d0606; }
+.quiz-score { text-align: center; font-size: 1.5rem; font-weight: 900; padding: 18px; }
+
+/* ===== プレイヤー ===== */
+.player-sent { font-size: 1.65rem; font-weight: 800; line-height: 1.6; text-align: center; min-height: 130px; display: flex; flex-direction: column; justify-content: center; }
+.player-sent .p { font-size: 1.1rem; font-weight: 700; color: var(--gold); margin-top: 10px; line-height: 1.6; }
+.player-sent .ja { font-size: 1.05rem; font-weight: 600; color: var(--fg-sub); margin-top: 12px; line-height: 1.7; }
+.player-ctrl { display: flex; justify-content: center; align-items: center; gap: 18px; margin-top: 20px; }
+.player-ctrl button {
+  font-size: 1.6rem; background: var(--card-bg); color: var(--fg);
+  border: 1px solid var(--card-border); border-radius: 50%;
+  width: 64px; height: 64px; cursor: pointer;
+}
+.player-ctrl button.main { width: 84px; height: 84px; font-size: 2rem; background: var(--accent); border: none; }
+.opt-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 2px; font-size: 1.05rem; font-weight: 700; }
+.opt-row select {
+  font-size: 1rem; font-weight: 700; color: var(--fg);
+  background: rgba(255,255,255,0.12); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 8px 12px;
+}
+.toggle { position: relative; width: 56px; height: 32px; appearance: none; background: rgba(255,255,255,0.2); border-radius: 16px; cursor: pointer; transition: background 0.2s; }
+.toggle:checked { background: var(--ok); }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+.toggle:checked::after { left: 27px; }
+
+/* ===== リスト ===== */
+.list { display: grid; gap: 12px; }
+.list-item {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 17px 18px; color: var(--fg); cursor: pointer;
+}
+.list-item .t { font-size: 1.12rem; font-weight: 800; line-height: 1.5; }
+.list-item .d { font-size: 0.92rem; font-weight: 600; color: var(--fg-sub); margin-top: 3px; line-height: 1.55; }
+.list-item .chev { margin-left: auto; color: var(--fg-sub); }
+.list-item .del { margin-left: auto; background: none; border: none; color: var(--ng); font-size: 1.35rem; cursor: pointer; padding: 6px; }
+
+/* ===== 翻訳 ===== */
+textarea.input {
+  width: 100%; min-height: 110px; font-size: 1.2rem; font-weight: 700; color: var(--fg);
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 16px; resize: vertical; font-family: inherit;
+}
+textarea.input::placeholder { color: rgba(255,255,255,0.4); }
+.result-box { margin-top: 14px; }
+.result-box .res { font-size: 1.5rem; font-weight: 800; line-height: 1.6; }
+.result-box .res-p { font-size: 1.1rem; font-weight: 700; color: var(--gold); margin-top: 8px; }
+.note { font-size: 0.88rem; font-weight: 600; color: var(--fg-sub); line-height: 1.7; margin-top: 12px; }
+
+.empty { text-align: center; color: var(--fg-sub); font-size: 1.05rem; font-weight: 700; padding: 40px 10px; line-height: 1.8; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
+  background: rgba(20, 20, 30, 0.92); border: 1px solid var(--card-border);
+  color: #fff; font-size: 1.05rem; font-weight: 800;
+  padding: 14px 26px; border-radius: 999px; z-index: 50;
+  opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+.footer { text-align: center; color: var(--fg-sub); font-size: 0.88rem; font-weight: 600; margin-top: 34px; line-height: 1.8; }
+.footer a { color: var(--accent); text-decoration: none; font-weight: 700; }
+
+@media (min-width: 700px) {
+  html { font-size: 19px; }
+  .vocab-card .word { font-size: 3.6rem; }
+}

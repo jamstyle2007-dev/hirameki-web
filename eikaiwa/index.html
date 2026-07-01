@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひらめき英会話 Web版 | 無料の英語学習アプリ（単語カード・シャドーイング・聞き流し・翻訳）</title>
+<meta name="description" content="ひらめき英会話のWeb版。3,000語以上の英単語カード、シャドーイング、聞き流し、日本語⇔英語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。">
+<meta property="og:title" content="ひらめき英会話 Web版 | 無料の英語学習アプリ">
+<meta property="og:description" content="英単語カード3,000語以上・シャドーイング・聞き流し・翻訳がすべて無料。インストール不要。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#1a0d33">
+<link rel="stylesheet" href="../shared/app.css">
+</head>
+<body class="theme-night">
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
+<main class="wrap" id="view">
+  <div class="hero">
+    <h1>ひらめき英会話</h1>
+    <p>読み込み中…</p>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="../shared/config.local.js"></script>
+<script>
+window.APP_CONFIG = {
+  id: "hirameki-eikaiwa",
+  name: "ひらめき英会話",
+  icon: "💡",
+  tagline: "英単語カード・シャドーイング・聞き流し。<br>すべて無料で、今日から英語がはじまる。",
+  lang: "en-US",
+  mmLang: "en",
+  langLabel: "英語",
+  hasPinyin: false,
+  rateNormal: 0.9,
+  vocabDesc: "中学〜大学・ビジネスまで3,000語以上",
+  levelSubtitles: { beginner: "中学英単語", intermediate: "高校英単語", advanced: "大学・ビジネス・映画" },
+  examplePlaceholder: "例：Good morning!",
+  appStoreUrl: "https://apps.apple.com/jp/app/id6775765772",
+  dataUrl: "../data/eikaiwa.json",
+  voiceSample: "Good morning! How are you today?",
+  aiName: "英語",
+  aiKey: window.HIRAMEKI_AI_KEY || ""  // AI翻訳キーはshared/config.local.js（git管理外）で設定
+};
+</script>
+<script src="../shared/app.js"></script>
+</body>
+</html>

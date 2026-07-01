@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひらめき中国語 Web版 | 無料の中国語学習アプリ（単語カード・ピンイン・シャドーイング・翻訳）</title>
+<meta name="description" content="ひらめき中国語のWeb版。HSK対応の単語カード（ピンイン付き）、シャドーイング、聞き流し、日本語⇔中国語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。">
+<meta property="og:title" content="ひらめき中国語 Web版 | 無料の中国語学習アプリ">
+<meta property="og:description" content="HSK対応の単語カード（ピンイン付き）・シャドーイング・聞き流し・翻訳がすべて無料。インストール不要。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#3d0d0d">
+<link rel="stylesheet" href="../shared/app.css">
+</head>
+<body class="theme-festive">
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
+<main class="wrap" id="view">
+  <div class="hero">
+    <h1>ひらめき中国語</h1>
+    <p>読み込み中…</p>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="../shared/config.local.js"></script>
+<script>
+window.APP_CONFIG = {
+  id: "hirameki-chinese",
+  name: "ひらめき中国語",
+  icon: "🏮",
+  tagline: "ピンイン付き単語カード・シャドーイング・聞き流し。<br>すべて無料で、今日から中国語がはじまる。",
+  lang: "zh-CN",
+  mmLang: "zh-CN",
+  langLabel: "中国語",
+  hasPinyin: true,
+  rateNormal: 0.85,
+  vocabDesc: "HSK1〜6・ビジネス・映画の頻出語",
+  levelSubtitles: { beginner: "HSK1〜2の基礎語", intermediate: "HSK3〜4の実用語", advanced: "HSK5〜6・ビジネス・映画" },
+  examplePlaceholder: "例：你好！",
+  appStoreUrl: "https://apps.apple.com/jp/app/id6774550633",
+  dataUrl: "../data/chinese.json",
+  voiceSample: "你好！很高兴认识你。",
+  aiName: "中国語（簡体字）",
+  aiKey: window.HIRAMEKI_AI_KEY || ""  // AI翻訳キーはshared/config.local.js（git管理外）で設定
+};
+</script>
+<script src="../shared/app.js"></script>
+</body>
+</html>
