@@ -3,37 +3,256 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ひらめき語学シリーズ Web版 | 無料で使える語学学習アプリ</title>
-<meta name="description" content="ひらめき語学シリーズのWeb版。英会話・中国語の単語カード、シャドーイング、聞き流し、翻訳がすべて無料。インストール不要でブラウザからすぐ使えます。">
-<meta name="theme-color" content="#1a0d33">
-<link rel="stylesheet" href="shared/app.css?v=4">
+<title>ひらめき語学シリーズ｜無料の英語・中国語学習アプリ（インストール不要・ブラウザですぐ使える）</title>
+<meta name="description" content="ひらめき語学シリーズは、インストール不要でブラウザからすぐ使える無料の語学学習アプリ。英単語3,000語以上の単語カード、シャドーイング、聞き流し、AI翻訳、オンラインレッスンの復習まで全部無料。スマホ・パソコン・Androidどれでも使えます。">
+<meta name="keywords" content="英語 学習 無料,英単語 アプリ 無料,中国語 ピンイン 単語帳,シャドーイング 無料,聞き流し 英語,インストール不要,ブラウザ 語学,オンライン英会話 復習,無料 単語帳">
+<meta property="og:title" content="ひらめき語学シリーズ｜無料の英語・中国語学習アプリ">
+<meta property="og:description" content="インストール不要・ブラウザですぐ使える無料の語学学習アプリ。単語カード・シャドーイング・聞き流し・AI翻訳・レッスン復習が全部無料。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://apps.jack-invest.com/">
+<meta name="theme-color" content="#7c3aed">
+<link rel="canonical" href="https://apps.jack-invest.com/">
 <script src="shared/adsense.js?v=4"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --violet: #7c3aed; --violet-d: #6d28d9; --pink: #ec4899; --indigo: #6366f1;
+    --ink: #1e2136; --sub: #5c6178; --line: #eceaf5;
+    --bg: #f6f5fc; --card: #ffffff;
+  }
+  html { font-size: 18px; scroll-behavior: smooth; }
+  body {
+    font-family: "Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.7; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+  /* ヘッダー */
+  .nav { position: sticky; top: 0; z-index: 20; background: rgba(246,245,252,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .nav .wrap { display: flex; align-items: center; gap: 12px; height: 64px; }
+  .nav .logo { font-size: 1.3rem; font-weight: 900; }
+  .nav .logo .dot { color: var(--violet); }
+  .nav .spacer { flex: 1; }
+  .nav .nav-cta { font-size: 1rem; font-weight: 800; color: #fff; background: var(--violet); padding: 10px 18px; border-radius: 999px; }
+
+  /* ヒーロー */
+  .hero { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 42%, #ec4899 100%); color: #fff; padding: 56px 0 70px; overflow: hidden; }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; align-items: center; }
+  .hero h1 { font-size: 2.7rem; font-weight: 900; line-height: 1.3; letter-spacing: 0.01em; }
+  .hero .lead { font-size: 1.25rem; font-weight: 700; margin-top: 18px; line-height: 1.9; opacity: 0.97; }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .hero .badge { font-size: 0.98rem; font-weight: 800; background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 8px 15px; }
+  .hero .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .hero-btn { font-size: 1.1rem; font-weight: 900; padding: 15px 26px; border-radius: 14px; display: inline-flex; align-items: center; gap: 8px; }
+  .hero-btn.en { background: #fff; color: var(--violet-d); }
+  .hero-btn.zh { background: rgba(255,255,255,0.16); color: #fff; border: 1.5px solid rgba(255,255,255,0.6); }
+  .hero-visual { display: flex; justify-content: center; }
+
+  /* スマホ枠 */
+  .phone { width: 258px; border-radius: 38px; padding: 9px; background: #15131f; box-shadow: 0 26px 60px rgba(40,20,70,0.35); }
+  .phone img { width: 100%; border-radius: 30px; display: block; }
+
+  /* セクション */
+  section { padding: 60px 0; }
+  .sec-title { font-size: 2rem; font-weight: 900; text-align: center; }
+  .sec-sub { font-size: 1.1rem; font-weight: 700; color: var(--sub); text-align: center; margin-top: 12px; line-height: 1.8; }
+
+  /* 特長グリッド */
+  .features { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 40px; }
+  .fcard { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 26px 22px; box-shadow: 0 8px 26px rgba(60,40,120,0.06); }
+  .fcard .fi { font-size: 2.3rem; }
+  .fcard .ft { font-size: 1.25rem; font-weight: 900; margin-top: 12px; }
+  .fcard .fd { font-size: 1rem; font-weight: 600; color: var(--sub); margin-top: 8px; line-height: 1.8; }
+
+  /* スクショ見せ */
+  .showcase { background: linear-gradient(180deg, #f0edfb 0%, #f6f5fc 100%); }
+  .shots { display: flex; justify-content: center; gap: 34px; margin-top: 44px; flex-wrap: wrap; }
+  .shot { text-align: center; max-width: 258px; }
+  .shot .cap { font-size: 1.05rem; font-weight: 800; margin-top: 18px; }
+  .shot .capd { font-size: 0.95rem; font-weight: 600; color: var(--sub); margin-top: 5px; line-height: 1.7; }
+
+  /* メリット */
+  .benefits { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 40px; }
+  .bcard { text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 30px 22px; box-shadow: 0 8px 26px rgba(60,40,120,0.06); }
+  .bcard .bi { font-size: 2.6rem; }
+  .bcard .bt { font-size: 1.3rem; font-weight: 900; margin-top: 12px; }
+  .bcard .bd { font-size: 1rem; font-weight: 600; color: var(--sub); margin-top: 8px; line-height: 1.8; }
+
+  /* 対象 */
+  .who { background: linear-gradient(135deg,#faf5ff,#fdf2f8); }
+  .who-list { max-width: 760px; margin: 34px auto 0; display: grid; gap: 14px; }
+  .who-item { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; font-size: 1.12rem; font-weight: 700; }
+  .who-item .ci { color: var(--violet); font-size: 1.4rem; flex-shrink: 0; }
+
+  /* FAQ */
+  .faq { max-width: 800px; margin: 40px auto 0; display: grid; gap: 14px; }
+  .faq details { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 4px 22px; box-shadow: 0 6px 20px rgba(60,40,120,0.05); }
+  .faq summary { font-size: 1.15rem; font-weight: 800; padding: 18px 0; cursor: pointer; list-style: none; display: flex; align-items: center; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "＋"; margin-left: auto; color: var(--violet); font-weight: 900; }
+  .faq details[open] summary::after { content: "－"; }
+  .faq .fa { font-size: 1.02rem; font-weight: 600; color: var(--sub); padding: 0 0 18px; line-height: 1.9; }
+
+  /* 最終CTA */
+  .final { background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%); color: #fff; text-align: center; }
+  .final h2 { font-size: 2rem; font-weight: 900; }
+  .final p { font-size: 1.15rem; font-weight: 700; margin-top: 14px; opacity: 0.96; }
+  .final .hero-cta { justify-content: center; margin-top: 28px; }
+
+  /* フッター */
+  footer { background: #1a1730; color: rgba(255,255,255,0.75); padding: 40px 0; text-align: center; font-size: 0.95rem; font-weight: 600; line-height: 2; }
+  footer a { color: #d8b4fe; font-weight: 800; }
+
+  @media (max-width: 820px) {
+    html { font-size: 17px; }
+    .hero .wrap { grid-template-columns: 1fr; text-align: center; }
+    .hero h1 { font-size: 2.2rem; }
+    .hero .badges, .hero .hero-cta { justify-content: center; }
+    .hero-visual { margin-top: 10px; }
+    .features, .benefits { grid-template-columns: 1fr; }
+    .nav .nav-cta { display: none; }
+  }
+</style>
 </head>
-<body class="theme-night">
-<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
-<main class="wrap">
-  <div class="hero">
-    <div class="app-icon">💡</div>
-    <h1>ひらめき語学シリーズ</h1>
-    <p>インストール不要。<br>ブラウザだけで、今日から学べる。</p>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <span class="logo">ひらめき<span class="dot">語学</span></span>
+    <span class="spacer"></span>
+    <a class="nav-cta" href="#start">今すぐはじめる</a>
   </div>
-  <div class="menu">
-    <a class="menu-item" href="eikaiwa/" style="text-decoration:none">
-      <span class="icon">🇺🇸</span>
-      <span><span class="t">ひらめき英会話</span><br><span class="d">英単語3,000語以上・シャドーイング・聞き流し・翻訳</span></span>
-      <span class="chev">›</span>
-    </a>
-    <a class="menu-item" href="chinese/" style="text-decoration:none">
-      <span class="icon">🏮</span>
-      <span><span class="t">ひらめき中国語</span><br><span class="d">HSK対応・ピンイン付き単語カード・シャドーイング・翻訳</span></span>
-      <span class="chev">›</span>
-    </a>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <h1>インストール不要。<br>ブラウザで、今日から語学。</h1>
+      <p class="lead">
+        英語も中国語も、これひとつ。<br>
+        単語カード・シャドーイング・AI翻訳・レッスン復習。<br>
+        ぜんぶ無料で使えます。
+      </p>
+      <div class="badges">
+        <span class="badge">✅ 完全無料</span>
+        <span class="badge">✅ インストール不要</span>
+        <span class="badge">✅ スマホもPCもOK</span>
+      </div>
+      <div class="hero-cta" id="start">
+        <a class="hero-btn en" href="eikaiwa/">🇺🇸 英会話をはじめる</a>
+        <a class="hero-btn zh" href="chinese/">🏮 中国語をはじめる</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="phone"><img src="assets/shot-chinese-review.png" alt="ひらめき中国語の復習画面。単語・ピンイン・意味・例文が一覧で見える。" loading="eager"></div>
+    </div>
   </div>
-  <div class="footer">
-    iPhone版はApp Storeで公開中です。<br>
-    すべての機能を無料でお使いいただけます。<br><br>
-    <a href="privacy/">プライバシーポリシー</a>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2 class="sec-title">できること</h2>
+    <p class="sec-sub">語学に必要な学習が、ぜんぶひとつの画面に。</p>
+    <div class="features">
+      <div class="fcard"><div class="fi">🃏</div><div class="ft">3,000語以上の単語カード</div><div class="fd">中学レベルから大学・ビジネスまで。覚えた単語を記録して、10問ごとに確認テスト。</div></div>
+      <div class="fcard"><div class="fi">🗣️</div><div class="ft">シャドーイング・聞き流し</div><div class="fd">お手本の音声のあとに続けて発音。通勤中の聞き流しにもぴったり。</div></div>
+      <div class="fcard"><div class="fi">🔁</div><div class="ft">AI翻訳</div><div class="fd">日本語⇔英語・中国語をその場で変換。AIが自然で正確な訳を作ります。</div></div>
+      <div class="fcard"><div class="fi">📝</div><div class="ft">レッスン復習</div><div class="fd">オンラインレッスンで先生が書いてくれたメモを貼るだけ。AIが復習カードを自動作成。</div></div>
+      <div class="fcard"><div class="fi">🔊</div><div class="ft">ネイティブ発音</div><div class="fd">単語も例文も、何度でも音声で確認。聞きやすい声を自分で選べます。</div></div>
+      <div class="fcard"><div class="fi">🏮</div><div class="ft">ピンイン自動表示</div><div class="fd">中国語の漢字の読み方を自動で表示。発音記号を調べる手間がありません。</div></div>
+    </div>
   </div>
-</main>
+</section>
+
+<section class="showcase">
+  <div class="wrap">
+    <h2 class="sec-title">画面を見てみる</h2>
+    <p class="sec-sub">大きな文字と見やすい配色で、毎日つづけやすい。</p>
+    <div class="shots">
+      <div class="shot">
+        <div class="phone"><img src="assets/shot-eikaiwa-card.png" alt="ひらめき英会話の単語カード。英単語・意味・例文・和訳を表示。" loading="lazy"></div>
+        <div class="cap">単語カード</div>
+        <div class="capd">タップで意味と例文。<br>覚えた単語は自動で記録。</div>
+      </div>
+      <div class="shot">
+        <div class="phone"><img src="assets/shot-chinese-review.png" alt="ひらめき中国語のレッスン復習一覧。ピンインと品詞つき。" loading="lazy"></div>
+        <div class="cap">レッスン復習</div>
+        <div class="capd">先生のメモから、<br>AIが復習カードを作成。</div>
+      </div>
+      <div class="shot">
+        <div class="phone"><img src="assets/shot-eikaiwa-player.png" alt="ひらめき英会話のシャドーイング再生画面。" loading="lazy"></div>
+        <div class="cap">シャドーイング</div>
+        <div class="capd">速さも調整できて、<br>発音練習も聞き流しも。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 class="sec-title">ブラウザ版の3つの良さ</h2>
+    <div class="benefits">
+      <div class="bcard"><div class="bi">📲</div><div class="bt">インストール不要</div><div class="bd">アプリを入れずに、ページを開くだけ。今すぐはじめられます。</div></div>
+      <div class="bcard"><div class="bi">💻</div><div class="bt">どの端末でもOK</div><div class="bd">スマホ・パソコン・Android。同じ内容をどこでも使えます。</div></div>
+      <div class="bcard"><div class="bi">💰</div><div class="bt">全機能が無料</div><div class="bd">登録なし・料金なし。すべての機能を無料でお使いいただけます。</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="who">
+  <div class="wrap">
+    <h2 class="sec-title">こんな方におすすめ</h2>
+    <div class="who-list">
+      <div class="who-item"><span class="ci">✔</span><span>通勤や休憩のスキマ時間に、無料で語学を続けたい方</span></div>
+      <div class="who-item"><span class="ci">✔</span><span>オンライン英会話・中国語レッスンの復習を効率化したい方</span></div>
+      <div class="who-item"><span class="ci">✔</span><span>アプリを入れずに、パソコンでもスマホでも勉強したい方</span></div>
+      <div class="who-item"><span class="ci">✔</span><span>ピンインや発音つきで、正しく覚えたい方</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2 class="sec-title">よくある質問</h2>
+    <div class="faq">
+      <details><summary>本当に無料ですか？</summary><div class="fa">はい。単語カード・シャドーイング・聞き流し・AI翻訳・レッスン復習まで、すべての機能を無料でお使いいただけます。会員登録も不要です。</div></details>
+      <details><summary>アプリのインストールは必要ですか？</summary><div class="fa">必要ありません。このページからそのままブラウザで使えます。スマホ・パソコン・Androidのどれでも、同じように学習できます。</div></details>
+      <details><summary>スマホのホーム画面に置けますか？</summary><div class="fa">はい。ブラウザの「ホーム画面に追加」機能を使えば、アプリのようにアイコンから起動できます。</div></details>
+      <details><summary>オンラインレッスンの復習に使えますか？</summary><div class="fa">はい。「レッスン復習」に先生のメモやチャットを貼り付けると、AIが単語・意味・例文（中国語はピンイン付き）の復習カードを自動で作ります。</div></details>
+      <details><summary>iPhoneアプリ版はありますか？</summary><div class="fa">はい。App Storeでも公開しています。ブラウザ版とあわせてお使いいただけます。</div></details>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>さあ、今日からはじめよう。</h2>
+    <p>インストール不要。開いた瞬間から、学べます。</p>
+    <div class="hero-cta">
+      <a class="hero-btn en" href="eikaiwa/">🇺🇸 英会話をはじめる</a>
+      <a class="hero-btn zh" href="chinese/">🏮 中国語をはじめる</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    ひらめき語学シリーズ｜英語・中国語の無料学習アプリ<br>
+    iPhone版もApp Storeで公開中です。<br>
+    <a href="privacy/">プライバシーポリシー</a><br><br>
+    © ひらめき語学シリーズ
+  </div>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"本当に無料ですか？","acceptedAnswer":{"@type":"Answer","text":"はい。単語カード・シャドーイング・聞き流し・AI翻訳・レッスン復習まで、すべての機能を無料でお使いいただけます。会員登録も不要です。"}},
+{"@type":"Question","name":"アプリのインストールは必要ですか？","acceptedAnswer":{"@type":"Answer","text":"必要ありません。ブラウザでそのまま使えます。スマホ・パソコン・Androidのどれでも学習できます。"}},
+{"@type":"Question","name":"オンラインレッスンの復習に使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。レッスン復習に先生のメモを貼り付けると、AIが単語・意味・例文の復習カードを自動で作ります。"}},
+{"@type":"Question","name":"iPhoneアプリ版はありますか？","acceptedAnswer":{"@type":"Answer","text":"はい。App Storeでも公開しています。ブラウザ版とあわせてお使いいただけます。"}}
+]}
+</script>
+
 </body>
 </html>
