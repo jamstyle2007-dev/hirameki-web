@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひらめき韓国語 Web版 | 無料の韓国語学習アプリ（単語カード・シャドーイング・聞き流し・翻訳）</title>
+<meta name="description" content="ひらめき韓国語のWeb版。あいさつから日常会話まで2,800語以上の単語カード、シャドーイング、聞き流し、日本語⇔韓国語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。">
+<meta property="og:title" content="ひらめき韓国語 Web版 | 無料の韓国語学習アプリ">
+<meta property="og:description" content="単語カード2,800語以上・シャドーイング・聞き流し・翻訳がすべて無料。インストール不要。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0e1e46">
+<link rel="stylesheet" href="../shared/app.css?v=5">
+<script src="../shared/adsense.js?v=5"></script>
+</head>
+<body class="theme-korea">
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
+<main class="wrap" id="view">
+  <div class="hero">
+    <h1>ひらめき韓国語</h1>
+    <p>読み込み中…</p>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="../shared/config.local.js"></script>
+<script>
+window.APP_CONFIG = {
+  id: "hirameki-korean",
+  name: "ひらめき韓国語",
+  icon: "🇰🇷",
+  tagline: "単語カード・シャドーイング・聞き流し。<br>すべて無料で、今日から韓国語がはじまる。",
+  lang: "ko-KR",
+  mmLang: "ko",
+  langLabel: "韓国語",
+  hasPinyin: false,
+  rateNormal: 0.9,
+  vocabDesc: "あいさつから日常会話まで2,800語以上",
+  levelSubtitles: { beginner: "基本のあいさつ・日常", intermediate: "旅行・電話・実用会話", advanced: "ビジネス・面接・意見" },
+  examplePlaceholder: "例：안녕하세요",
+  appStoreUrl: "https://apps.apple.com/jp/app/id6776145497",
+  dataUrl: "../data/korean.json",
+  voiceSample: "안녕하세요! 만나서 반가워요.",
+  aiName: "韓国語",
+  aiKey: window.HIRAMEKI_AI_KEY || ""
+};
+</script>
+<script src="../shared/app.js?v=5"></script>
+</body>
+</html>

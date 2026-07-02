@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ひらめき語学シリーズ｜無料の英語・中国語学習アプリ（インストール不要・ブラウザですぐ使える）</title>
-<meta name="description" content="ひらめき語学シリーズは、インストール不要でブラウザからすぐ使える無料の語学学習アプリ。英単語3,000語以上の単語カード、シャドーイング、聞き流し、AI翻訳、オンラインレッスンの復習まで全部無料。スマホ・パソコン・Androidどれでも使えます。">
+<title>ひらめき語学シリーズ｜無料の英語・中国語・韓国語・フランス語学習アプリ（インストール不要・ブラウザですぐ使える）</title>
+<meta name="description" content="ひらめき語学シリーズは、インストール不要でブラウザからすぐ使える無料の語学学習アプリ。英語・中国語・韓国語・フランス語に対応。単語カード、シャドーイング、聞き流し、AI翻訳、オンラインレッスンの復習まで全部無料。スマホ・パソコン・Androidどれでも使えます。">
 <meta name="keywords" content="英語 学習 無料,英単語 アプリ 無料,中国語 ピンイン 単語帳,シャドーイング 無料,聞き流し 英語,インストール不要,ブラウザ 語学,オンライン英会話 復習,無料 単語帳">
 <meta property="og:title" content="ひらめき語学シリーズ｜無料の英語・中国語学習アプリ">
 <meta property="og:description" content="インストール不要・ブラウザですぐ使える無料の語学学習アプリ。単語カード・シャドーイング・聞き流し・AI翻訳・レッスン復習が全部無料。">
@@ -72,6 +72,16 @@
   .shot .cap { font-size: 1.05rem; font-weight: 800; margin-top: 18px; }
   .shot .capd { font-size: 0.95rem; font-weight: 600; color: var(--sub); margin-top: 5px; line-height: 1.7; }
 
+  /* 言語選択 */
+  .lang-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; margin-top: 40px; }
+  .lang-card { display: flex; align-items: center; gap: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 22px; box-shadow: 0 8px 26px rgba(60,40,120,0.06); transition: transform .08s ease; }
+  .lang-card:active { transform: scale(0.98); }
+  .lang-card .li { font-size: 2.6rem; }
+  .lang-card .lt { display: block; font-size: 1.35rem; font-weight: 900; }
+  .lang-card .ld { display: block; font-size: 0.94rem; font-weight: 600; color: var(--sub); margin-top: 3px; line-height: 1.6; }
+  .lang-card .lg { margin-left: auto; color: var(--violet); font-size: 1.5rem; font-weight: 900; }
+  @media (max-width: 820px) { .lang-grid { grid-template-columns: 1fr; } }
+
   /* メリット */
   .benefits { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 40px; }
   .bcard { text-align: center; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 30px 22px; box-shadow: 0 8px 26px rgba(60,40,120,0.06); }
@@ -130,7 +140,7 @@
     <div>
       <h1>インストール不要。<br>ブラウザで、今日から語学。</h1>
       <p class="lead">
-        英語も中国語も、これひとつ。<br>
+        英語・中国語・韓国語・フランス語。<br>
         単語カード・シャドーイング・AI翻訳・レッスン復習。<br>
         ぜんぶ無料で使えます。
       </p>
@@ -140,8 +150,8 @@
         <span class="badge">✅ スマホもPCもOK</span>
       </div>
       <div class="hero-cta" id="start">
-        <a class="hero-btn en" href="eikaiwa/">🇺🇸 英会話をはじめる</a>
-        <a class="hero-btn zh" href="chinese/">🏮 中国語をはじめる</a>
+        <a class="hero-btn en" href="#langs">🌐 無料ではじめる</a>
+        <a class="hero-btn zh" href="eikaiwa/">🇺🇸 英会話へ</a>
       </div>
     </div>
     <div class="hero-visual">
@@ -149,6 +159,19 @@
     </div>
   </div>
 </header>
+
+<section id="langs">
+  <div class="wrap">
+    <h2 class="sec-title">学べる言語</h2>
+    <p class="sec-sub">すべて無料。好きな言語から、今すぐはじめられます。</p>
+    <div class="lang-grid">
+      <a class="lang-card" href="eikaiwa/"><span class="li">🇺🇸</span><span><span class="lt">英会話</span><span class="ld">英単語3,000語以上・シャドーイング・AI翻訳</span></span><span class="lg">›</span></a>
+      <a class="lang-card" href="chinese/"><span class="li">🏮</span><span><span class="lt">中国語</span><span class="ld">HSK対応・ピンイン付き単語カード</span></span><span class="lg">›</span></a>
+      <a class="lang-card" href="korean/"><span class="li">🇰🇷</span><span><span class="lt">韓国語</span><span class="ld">あいさつから日常会話まで2,800語以上</span></span><span class="lg">›</span></a>
+      <a class="lang-card" href="french/"><span class="li">🇫🇷</span><span><span class="lt">フランス語</span><span class="ld">A1〜B2の頻出語・シャドーイング</span></span><span class="lg">›</span></a>
+    </div>
+  </div>
+</section>
 
 <section>
   <div class="wrap">
@@ -230,15 +253,14 @@
     <h2>さあ、今日からはじめよう。</h2>
     <p>インストール不要。開いた瞬間から、学べます。</p>
     <div class="hero-cta">
-      <a class="hero-btn en" href="eikaiwa/">🇺🇸 英会話をはじめる</a>
-      <a class="hero-btn zh" href="chinese/">🏮 中国語をはじめる</a>
+      <a class="hero-btn en" href="#langs">🌐 言語を選んではじめる</a>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    ひらめき語学シリーズ｜英語・中国語の無料学習アプリ<br>
+    ひらめき語学シリーズ｜英語・中国語・韓国語・フランス語の無料学習アプリ<br>
     iPhone版もApp Storeで公開中です。<br>
     <a href="privacy/">プライバシーポリシー</a><br><br>
     © ひらめき語学シリーズ

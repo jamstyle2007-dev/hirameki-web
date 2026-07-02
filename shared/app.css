@@ -45,6 +45,28 @@ body.theme-festive .bg .b1 { width: 380px; height: 380px; background: rgba(209, 
 body.theme-festive .bg .b2 { width: 360px; height: 360px; background: rgba(219, 163, 46, 0.5); right: -110px; bottom: -60px; }
 body.theme-festive { --accent: #ffb84d; }
 
+/* 韓国語：クールなブルー×シアン */
+body.theme-korea .bg {
+  background:
+    radial-gradient(600px 400px at 50% 0%, rgba(56, 149, 255, 0.4), transparent 70%),
+    linear-gradient(180deg, rgba(20, 52, 120, 0.55) 0%, rgba(30, 90, 170, 0.28) 40%, rgba(56, 189, 248, 0.10) 70%, rgba(14, 30, 70, 0.5) 100%),
+    #070c16;
+}
+body.theme-korea .bg .b1 { width: 380px; height: 380px; background: rgba(37, 99, 235, 0.45); left: -120px; top: 40px; }
+body.theme-korea .bg .b2 { width: 360px; height: 360px; background: rgba(56, 189, 248, 0.42); right: -110px; bottom: -60px; }
+body.theme-korea { --accent: #38bdf8; }
+
+/* フランス語：ロイヤルブルー×ローズ */
+body.theme-france .bg {
+  background:
+    radial-gradient(600px 400px at 50% 0%, rgba(99, 102, 241, 0.42), transparent 70%),
+    linear-gradient(180deg, rgba(30, 41, 130, 0.55) 0%, rgba(99, 102, 241, 0.26) 38%, rgba(244, 114, 182, 0.12) 70%, rgba(40, 20, 70, 0.5) 100%),
+    #0a0817;
+}
+body.theme-france .bg .b1 { width: 380px; height: 380px; background: rgba(79, 70, 229, 0.45); left: -120px; top: 40px; }
+body.theme-france .bg .b2 { width: 360px; height: 360px; background: rgba(244, 114, 182, 0.42); right: -110px; bottom: -60px; }
+body.theme-france { --accent: #f472b6; }
+
 /* ===== レイアウト ===== */
 .wrap { max-width: 640px; margin: 0 auto; padding: 20px 18px 90px; }
 

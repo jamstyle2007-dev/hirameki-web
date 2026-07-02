@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひらめきフランス語 Web版 | 無料のフランス語学習アプリ（単語カード・シャドーイング・聞き流し・翻訳）</title>
+<meta name="description" content="ひらめきフランス語のWeb版。A1〜B2の単語カード、シャドーイング、聞き流し、日本語⇔フランス語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。">
+<meta property="og:title" content="ひらめきフランス語 Web版 | 無料のフランス語学習アプリ">
+<meta property="og:description" content="A1〜B2の単語カード・シャドーイング・聞き流し・翻訳がすべて無料。インストール不要。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#1e2982">
+<link rel="stylesheet" href="../shared/app.css?v=5">
+<script src="../shared/adsense.js?v=5"></script>
+</head>
+<body class="theme-france">
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
+<main class="wrap" id="view">
+  <div class="hero">
+    <h1>ひらめきフランス語</h1>
+    <p>読み込み中…</p>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="../shared/config.local.js"></script>
+<script>
+window.APP_CONFIG = {
+  id: "hirameki-french",
+  name: "ひらめきフランス語",
+  icon: "🇫🇷",
+  tagline: "単語カード・シャドーイング・聞き流し。<br>すべて無料で、今日からフランス語がはじまる。",
+  lang: "fr-FR",
+  mmLang: "fr",
+  langLabel: "フランス語",
+  hasPinyin: false,
+  rateNormal: 0.9,
+  vocabDesc: "A1〜B2の頻出語 約600語",
+  levelSubtitles: { beginner: "あいさつ・日常の基礎語（A1〜A2）", intermediate: "旅行・生活の実用語（B1）", advanced: "ビジネス・抽象語（B2〜）" },
+  examplePlaceholder: "例：Bonjour !",
+  appStoreUrl: "https://apps.apple.com/jp/app/id6778663185",
+  dataUrl: "../data/french.json",
+  voiceSample: "Bonjour ! Comment allez-vous ?",
+  aiName: "フランス語",
+  aiKey: window.HIRAMEKI_AI_KEY || ""
+};
+</script>
+<script src="../shared/app.js?v=5"></script>
+</body>
+</html>

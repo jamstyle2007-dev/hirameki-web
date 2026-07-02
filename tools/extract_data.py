@@ -59,6 +59,34 @@ def parse_vocab_chinese(text: str) -> dict:
     return out
 
 
+def parse_vocab_korean(text: str) -> dict:
+    # 韓国語: kb/ki/ka(korean, japanese, exampleKo, exampleJa)。読み仮名は持たない。
+    levels = {"kb": "beginner", "ki": "intermediate", "ka": "advanced"}
+    out = {"beginner": [], "intermediate": [], "advanced": []}
+    for f, w, m, e, ej, _ in parse_calls(text, "kb|ki|ka"):
+        out[levels[f]].append({"w": w, "m": m, "e": e, "ej": ej})
+    return out
+
+
+def parse_vocab_positional(text: str) -> dict:
+    # フランス語など: c(word, meaning, example, exampleJa)。レベルは配列宣言位置で判定。読み仮名なし。
+    markers = []
+    for name in ("beginner", "intermediate", "advanced"):
+        m = re.search(rf"static let {name}: \[VocabCard\] = \[", text)
+        if m:
+            markers.append((m.start(), name))
+    markers.sort()
+    out = {"beginner": [], "intermediate": [], "advanced": []}
+    for _, w, m, e, ej, pos in parse_calls(text, "c"):
+        level = None
+        for start, name in markers:
+            if pos >= start:
+                level = name
+        if level:
+            out[level].append({"w": w, "m": m, "e": e, "ej": ej})
+    return out
+
+
 def to_pinyin(s: str) -> str:
     parts = pinyin(s, style=Style.TONE, errors=lambda x: [x])
     return " ".join(p[0] for p in parts).strip()
@@ -113,7 +141,22 @@ def main():
     (OUT / "chinese.json").write_text(json.dumps(
         {"vocab": zh_vocab, "books": zh_books}, ensure_ascii=False), encoding="utf-8")
 
-    for name, v, b in (("英会話", ek_vocab, ek_books), ("中国語", zh_vocab, zh_books)):
+    ko_vocab = parse_vocab_korean(
+        (SRC / "HiramekiKorean/HiramekiKorean/VocabCards.swift").read_text())
+    ko_books = parse_books(
+        (SRC / "HiramekiKorean/HiramekiKorean/ContentView.swift").read_text(), zh=False)
+    (OUT / "korean.json").write_text(json.dumps(
+        {"vocab": ko_vocab, "books": ko_books}, ensure_ascii=False), encoding="utf-8")
+
+    fr_vocab = parse_vocab_positional(
+        (SRC / "HiramekiFrench/HiramekiFrench/VocabData.swift").read_text())
+    fr_books = parse_books(
+        (SRC / "HiramekiFrench/HiramekiFrench/ContentView.swift").read_text(), zh=False)
+    (OUT / "french.json").write_text(json.dumps(
+        {"vocab": fr_vocab, "books": fr_books}, ensure_ascii=False), encoding="utf-8")
+
+    for name, v, b in (("英会話", ek_vocab, ek_books), ("中国語", zh_vocab, zh_books),
+                       ("韓国語", ko_vocab, ko_books), ("フランス語", fr_vocab, fr_books)):
         counts = {k: len(x) for k, x in v.items()}
         for mode in ("shadowing", "listening"):
             n_sent = sum(len(x["sentences"]) for x in b[mode])
