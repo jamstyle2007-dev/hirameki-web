@@ -2,7 +2,7 @@
 // 審査に通ったら PUB_ID を ca-pub-XXXXXXXXXXXXXXXX に設定すると、全ページで広告が有効になる。
 // 発行者IDは公開情報のため、ここに直接記載して問題ない。
 (() => {
-  const PUB_ID = ""; // 例: "ca-pub-1234567890123456"
+  const PUB_ID = "ca-pub-1152026485973831";
   if (!PUB_ID) return;
   const s = document.createElement("script");
   s.async = true;
