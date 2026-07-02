@@ -155,8 +155,16 @@ def main():
     (OUT / "french.json").write_text(json.dumps(
         {"vocab": fr_vocab, "books": fr_books}, ensure_ascii=False), encoding="utf-8")
 
+    es_vocab = parse_vocab_positional(
+        (SRC / "HiramekiSpanish/HiramekiSpanish/VocabData.swift").read_text())
+    es_books = parse_books(
+        (SRC / "HiramekiSpanish/HiramekiSpanish/ContentView.swift").read_text(), zh=False)
+    (OUT / "spanish.json").write_text(json.dumps(
+        {"vocab": es_vocab, "books": es_books}, ensure_ascii=False), encoding="utf-8")
+
     for name, v, b in (("英会話", ek_vocab, ek_books), ("中国語", zh_vocab, zh_books),
-                       ("韓国語", ko_vocab, ko_books), ("フランス語", fr_vocab, fr_books)):
+                       ("韓国語", ko_vocab, ko_books), ("フランス語", fr_vocab, fr_books),
+                       ("スペイン語", es_vocab, es_books)):
         counts = {k: len(x) for k, x in v.items()}
         for mode in ("shadowing", "listening"):
             n_sent = sum(len(x["sentences"]) for x in b[mode])

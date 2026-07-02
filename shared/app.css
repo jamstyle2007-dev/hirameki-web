@@ -67,6 +67,17 @@ body.theme-france .bg .b1 { width: 380px; height: 380px; background: rgba(79, 70
 body.theme-france .bg .b2 { width: 360px; height: 360px; background: rgba(244, 114, 182, 0.42); right: -110px; bottom: -60px; }
 body.theme-france { --accent: #f472b6; }
 
+/* スペイン語：サンセットのアンバー×マゼンタ */
+body.theme-spain .bg {
+  background:
+    radial-gradient(600px 400px at 50% 0%, rgba(251, 146, 60, 0.42), transparent 70%),
+    linear-gradient(180deg, rgba(217, 70, 30, 0.5) 0%, rgba(251, 146, 60, 0.24) 36%, rgba(236, 72, 153, 0.14) 68%, rgba(80, 20, 40, 0.5) 100%),
+    #150a0a;
+}
+body.theme-spain .bg .b1 { width: 380px; height: 380px; background: rgba(249, 115, 22, 0.48); left: -120px; top: 40px; }
+body.theme-spain .bg .b2 { width: 360px; height: 360px; background: rgba(219, 39, 119, 0.42); right: -110px; bottom: -60px; }
+body.theme-spain { --accent: #fb923c; }
+
 /* ===== レイアウト ===== */
 .wrap { max-width: 640px; margin: 0 auto; padding: 20px 18px 90px; }
 

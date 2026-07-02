@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ひらめきスペイン語 Web版 | 無料のスペイン語学習アプリ（単語カード・シャドーイング・聞き流し・翻訳）</title>
+<meta name="description" content="ひらめきスペイン語のWeb版。A1〜C1の単語カード、シャドーイング、聞き流し、日本語⇔スペイン語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。">
+<meta property="og:title" content="ひらめきスペイン語 Web版 | 無料のスペイン語学習アプリ">
+<meta property="og:description" content="A1〜C1の単語カード・シャドーイング・聞き流し・翻訳がすべて無料。インストール不要。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#d9461e">
+<link rel="stylesheet" href="../shared/app.css?v=5">
+<script src="../shared/adsense.js?v=5"></script>
+</head>
+<body class="theme-spain">
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div></div>
+<main class="wrap" id="view">
+  <div class="hero">
+    <h1>ひらめきスペイン語</h1>
+    <p>読み込み中…</p>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+<script src="../shared/config.local.js"></script>
+<script>
+window.APP_CONFIG = {
+  id: "hirameki-spanish",
+  name: "ひらめきスペイン語",
+  icon: "🇪🇸",
+  tagline: "単語カード・シャドーイング・聞き流し。<br>すべて無料で、今日からスペイン語がはじまる。",
+  lang: "es-ES",
+  mmLang: "es",
+  langLabel: "スペイン語",
+  hasPinyin: false,
+  rateNormal: 0.9,
+  vocabDesc: "A1〜C1の頻出語 約400語",
+  levelSubtitles: { beginner: "A1〜A2の基礎語", intermediate: "B1〜B2の実用語", advanced: "B2〜C1・ビジネス・映画" },
+  examplePlaceholder: "例：¡Hola!",
+  appStoreUrl: "https://apps.apple.com/jp/app/id6778767966",
+  dataUrl: "../data/spanish.json",
+  voiceSample: "¡Hola! Encantado de conocerte.",
+  aiName: "スペイン語",
+  aiKey: window.HIRAMEKI_AI_KEY || ""
+};
+</script>
+<script src="../shared/app.js?v=5"></script>
+</body>
+</html>
