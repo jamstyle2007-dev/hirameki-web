@@ -139,7 +139,8 @@
       </div>
       <div class="footer">
         iPhone版も公開中です。<br>
-        <a href="${C.appStoreUrl}" target="_blank" rel="noopener">App Storeで「${esc(C.name)}」を見る</a>
+        <a href="${C.appStoreUrl}" target="_blank" rel="noopener">App Storeで「${esc(C.name)}」を見る</a><br><br>
+        <a href="../privacy/">プライバシーポリシー</a>
       </div>`;
   };
 
