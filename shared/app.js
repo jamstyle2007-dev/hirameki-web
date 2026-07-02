@@ -47,6 +47,10 @@
       return [...cands].sort((a, b) => this.score(b) - this.score(a))[0];
     },
     speak(text, lang, rate = 0.9, onend = null) {
+      // 前回の発話が残っていると2回目以降が鳴らなくなるため、毎回リセットしてから発話する
+      speechSynthesis.cancel();
+      // Chromeで一時停止状態のまま詰まることがあるので念のため解除
+      if (speechSynthesis.paused) speechSynthesis.resume();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = lang;
       const v = this.pick(lang);
@@ -220,7 +224,7 @@
       </div>
       <div style="height:14px"></div>
       <div class="row">
-        <button class="btn ghost" id="speak">🔊 発音</button>
+        <button class="btn speak" id="speak">🔊 発音</button>
         <button class="btn ok" id="know">✅ 覚えた</button>
         <button class="btn ng" id="dontknow">🔁 まだ</button>
       </div>
@@ -505,7 +509,7 @@
           <div class="res">${esc(out)}</div>
           <div style="height:14px"></div>
           <div class="row">
-            <button class="btn ghost small" id="rspeak">🔊 発音</button>
+            <button class="btn speak small" id="rspeak">🔊 発音</button>
             <button class="btn small" id="rsave">📒 保存</button>
           </div>
         </div>`;
@@ -532,7 +536,7 @@
         ? `<div class="empty">まだ保存がありません。<br>翻訳の結果から「📒 保存」できます。</div>`
         : `<div class="list">` + phrases.map((p, i) => `
             <div class="list-item" style="cursor:default">
-              <button class="btn ghost small" data-s="${i}" style="width:auto">🔊</button>
+              <button class="btn speak small" data-s="${i}" style="width:auto">🔊</button>
               <span><span class="t">${esc(p.f)}</span><br><span class="d">${esc(p.ja)}</span></span>
               <button class="del" data-i="${i}">✕</button>
             </div>`).join("") + `</div>`);
@@ -565,7 +569,7 @@
           ${cands.map((v) => `<option value="${esc(v.name)}" ${current && v.name === current.name ? "selected" : ""}>${esc(v.name)}</option>`).join("")}
         </select>
         <div style="height:12px"></div>
-        <button class="btn ghost" id="test${li}">🔊 この声を聞いてみる</button>`}
+        <button class="btn speak" id="test${li}">🔊 この声を聞いてみる</button>`}
       </div>`;
     }).join("") + `<p class="note">「Natural」や「Google」と付いた声が、いちばん自然で聞き取りやすくおすすめです。設定はこの端末に保存されます。</p>`;
 
