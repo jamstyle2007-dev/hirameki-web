@@ -334,7 +334,7 @@
 
   /* ===== プレイヤー ===== */
   const player = {
-    mode: null, book: null, idx: 0, playing: false, timer: null,
+    mode: null, book: null, back: null, idx: 0, playing: false, timer: null,
     reset() {
       this.playing = false;
       clearTimeout(this.timer);
@@ -345,6 +345,7 @@
   routes.play = (mode, bookIdx) => {
     player.reset();
     player.mode = mode;
+    player.back = "books/" + mode;
     player.book = DATA.books[mode][+bookIdx];
     player.idx = 0;
     drawPlayer();
@@ -358,7 +359,7 @@
     const speed = store.get("playSpeed", "標準");
     const speeds = { "とても遅い": 0.55, "遅い": 0.7, "標準": 0.9, "速い": 1.1 };
 
-    view.innerHTML = topbar(b.title, "books/" + player.mode, `${player.idx + 1} / ${b.sentences.length}文`) + `
+    view.innerHTML = topbar(b.title, player.back || ("books/" + player.mode), `${player.idx + 1} / ${b.sentences.length}文`) + `
       <div class="card player-sent">
         <div>${esc(s.t)}</div>
         ${C.hasPinyin ? `<div class="p">${esc(s.p)}</div>` : ""}
@@ -599,7 +600,7 @@
           <div class="card" style="margin-bottom:14px">
             <div style="font-size:1.2rem;font-weight:800">${esc(d.title)}</div>
             <div style="color:var(--fg-sub);font-weight:600;margin:4px 0 14px">${esc(d.date)}｜${d.cards.length}語</div>
-            <button class="btn" onclick="location.hash='deckstudy/${d.id}'">▶︎ 学習する</button>
+            <button class="btn" onclick="location.hash='deck/${d.id}'">▶︎ 開く</button>
             <div class="row" style="margin-top:10px">
               <button class="btn ghost small" data-dl="${d.id}">⬇ 書き出し</button>
               <button class="btn ghost small" data-del="${d.id}">🗑 削除</button>
@@ -613,10 +614,57 @@
     }));
   };
 
-  routes.deckstudy = (id) => {
+  // デッキを開くと、まず「一覧」（全情報が一目で読める復習ビュー）
+  routes.deck = (id) => {
     const deck = getDecks().find((d) => d.id === id);
     if (!deck) { location.hash = "lessons"; return; }
-    startStudy("deck_" + id, deck.cards, "lessons", deck.title);
+    view.innerHTML = topbar(deck.title, "lessons", `${deck.date}｜${deck.cards.length}語`) + `
+      <div class="seg" style="margin-bottom:16px">
+        <button class="on">一覧</button>
+        <button onclick="location.hash='deckcards/${id}'">カード</button>
+        <button onclick="location.hash='decklisten/${id}'">リスニング</button>
+      </div>
+      <div class="review-list">${deck.cards.map((c, i) => reviewCardHtml(c, i)).join("")}</div>`;
+    view.querySelectorAll("[data-say]").forEach((b) => (b.onclick = () => {
+      const c = deck.cards[+b.dataset.say];
+      speech.speak(c.e ? c.w + "。" + c.e : c.w, C.lang, C.rateNormal);
+    }));
+  };
+
+  function reviewCardHtml(c, i) {
+    return `<div class="card review-card">
+      <button class="say-btn" data-say="${i}">🔊</button>
+      <div class="rc-word">${esc(c.w)}</div>
+      ${C.hasPinyin && c.p ? `<div class="rc-pinyin">${esc(c.p)}</div>` : ""}
+      ${c.pos ? `<span class="pos-badge">${esc(c.pos)}</span>` : ""}
+      <div class="rc-meaning">${esc(c.m)}</div>
+      ${c.e ? `<div class="rc-ex">
+        <div class="rc-ex-t">${esc(c.e)}</div>
+        ${C.hasPinyin && c.ep ? `<div class="rc-ex-p">${esc(c.ep)}</div>` : ""}
+        ${c.ej ? `<div class="rc-ex-ja">${esc(c.ej)}</div>` : ""}
+      </div>` : ""}
+    </div>`;
+  }
+
+  // カードで覚える（1枚ずつめくる・確認テスト付き）
+  routes.deckcards = (id) => {
+    const deck = getDecks().find((d) => d.id === id);
+    if (!deck) { location.hash = "lessons"; return; }
+    startStudy("deck_" + id, deck.cards, "deck/" + id, deck.title);
+  };
+
+  // 例文リスニング（デッキの例文を続けて再生）
+  routes.decklisten = (id) => {
+    const deck = getDecks().find((d) => d.id === id);
+    if (!deck) { location.hash = "lessons"; return; }
+    const sentences = deck.cards.filter((c) => c.e).map((c) => ({ t: c.e, ja: c.ej || "", p: c.ep || "" }));
+    if (!sentences.length) { location.hash = "deck/" + id; return; }
+    player.reset();
+    player.mode = "listening";
+    player.back = "deck/" + id;
+    player.book = { title: deck.title + "（例文）", sentences };
+    player.idx = 0;
+    drawPlayer();
   };
 
   routes.lessonnew = () => {
@@ -646,7 +694,7 @@
       const deck = { id: Date.now().toString(36), title, date, cards };
       saveDecks([deck, ...getDecks()]);
       toast(`${cards.length}語の復習カードを作成しました`);
-      location.hash = "deckstudy/" + deck.id;
+      location.hash = "deck/" + deck.id;
     } catch {
       $("#mkout").innerHTML = `<p class="note" style="color:var(--ng)">うまく作成できませんでした。貼り付ける文章を短くするか、少し時間をおいてもう一度お試しください。</p>`;
       btn.disabled = false;
@@ -656,8 +704,8 @@
 
   async function extractDeck(text) {
     const schema = C.hasPinyin
-      ? `各項目のキーは "w"(簡体字の語・表現), "p"(ピンイン・声調記号つき), "m"(日本語の意味), "e"(その語を使った自然な中国語の例文), "ep"(例文のピンイン), "ej"(例文の日本語訳)。`
-      : `各項目のキーは "w"(英単語または熟語・表現), "m"(日本語の意味), "e"(その語を使った自然な英語の例文), "ej"(例文の日本語訳)。`;
+      ? `各項目のキーは "w"(簡体字の語・表現), "p"(ピンイン・声調記号つき), "pos"(品詞を短い日本語で。例:名/動/形/副/量/表現), "m"(日本語の意味), "e"(その語を使った自然な中国語の例文), "ep"(例文のピンイン), "ej"(例文の日本語訳)。`
+      : `各項目のキーは "w"(英単語または熟語・表現), "pos"(品詞を短い日本語で。例:名/動/形/副/前/熟語/表現), "m"(日本語の意味), "e"(その語を使った自然な英語の例文), "ej"(例文の日本語訳)。`;
     const prompt = `あなたは${C.aiName}のプロ講師です。以下はオンラインレッスンで先生が書いてくれたメモやチャットの内容です。この中から、生徒が後で復習すべき重要な単語・熟語・表現を抜き出し、復習用カードを作ってください。
 条件:
 - レッスンに実際に登場した語や表現を優先する
@@ -688,7 +736,7 @@ ${text}`;
     return parsed
       .filter((c) => c && c.w && c.m)
       .slice(0, 40)
-      .map((c) => ({ w: c.w, p: c.p || "", m: c.m, e: c.e || "", ep: c.ep || "", ej: c.ej || "" }));
+      .map((c) => ({ w: c.w, p: c.p || "", pos: c.pos || "", m: c.m, e: c.e || "", ep: c.ep || "", ej: c.ej || "" }));
   }
 
   function downloadDeck(id) {
@@ -697,6 +745,7 @@ ${text}`;
     const lines = deck.cards.map((c, i) => {
       let s = `${i + 1}. ${c.w}`;
       if (C.hasPinyin && c.p) s += `（${c.p}）`;
+      if (c.pos) s += ` [${c.pos}]`;
       s += `\n   意味: ${c.m}`;
       if (c.e) s += `\n   例文: ${c.e}`;
       if (C.hasPinyin && c.ep) s += `\n   例文ピンイン: ${c.ep}`;

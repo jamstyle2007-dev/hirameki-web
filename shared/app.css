@@ -161,6 +161,29 @@ body.theme-festive .seg button.on { color: #341303; }
 .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; transition: left 0.2s; }
 .toggle:checked::after { left: 27px; }
 
+/* ===== レッスン復習: 一覧（全情報が読める復習カード） ===== */
+.review-list { display: grid; gap: 14px; }
+.review-card { position: relative; padding: 20px 20px 22px; }
+.review-card .say-btn {
+  position: absolute; top: 14px; right: 14px;
+  width: 50px; height: 50px; border-radius: 50%;
+  background: #3b7ff5; color: #fff; border: none;
+  font-size: 1.35rem; cursor: pointer;
+}
+.review-card .say-btn:active { transform: scale(0.94); }
+.rc-word { font-size: 2rem; font-weight: 900; line-height: 1.2; padding-right: 60px; word-break: break-word; }
+.rc-pinyin { font-size: 1.25rem; font-weight: 700; color: var(--gold); margin-top: 6px; }
+.pos-badge {
+  display: inline-block; font-size: 0.9rem; font-weight: 800;
+  background: rgba(255,255,255,0.18); border: 1px solid var(--card-border);
+  border-radius: 8px; padding: 3px 12px; margin-top: 12px;
+}
+.rc-meaning { font-size: 1.35rem; font-weight: 800; margin-top: 10px; line-height: 1.5; }
+.rc-ex { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--card-border); }
+.rc-ex-t { font-size: 1.18rem; font-weight: 700; line-height: 1.6; }
+.rc-ex-p { font-size: 1.02rem; font-weight: 700; color: var(--gold); margin-top: 6px; line-height: 1.55; }
+.rc-ex-ja { font-size: 1.04rem; font-weight: 600; color: var(--fg-sub); margin-top: 7px; line-height: 1.6; }
+
 /* ===== リスト ===== */
 .list { display: grid; gap: 12px; }
 .list-item {
