@@ -126,6 +126,11 @@
           <span><span class="t">翻訳</span><br><span class="d">日本語⇔${esc(C.langLabel)}をその場で変換</span></span>
           <span class="chev">›</span>
         </button>
+        <button class="menu-item" onclick="location.hash='lessons'">
+          <span class="icon">📝</span>
+          <span><span class="t">レッスン復習</span><br><span class="d">先生のメモを貼るとAIが復習カードを作成</span></span>
+          <span class="chev">›</span>
+        </button>
         <button class="menu-item" onclick="location.hash='phrases'">
           <span class="icon">📒</span>
           <span><span class="t">保存フレーズ</span><br><span class="d">あとで復習したい表現を保存</span></span>
@@ -160,37 +165,45 @@
       }).join("") + `</div>`;
   };
 
-  /* ===== 単語カード: 学習 ===== */
-  const study = { level: null, order: [], pos: 0, revealed: false, sinceQuiz: 0, recent: [] };
+  /* ===== 単語カード: 学習（組み込み語彙・レッスン復習デッキ共通エンジン） ===== */
+  const study = { id: null, cards: [], back: "vocab", title: "", order: [], pos: 0, revealed: false, sinceQuiz: 0, recent: [] };
 
-  routes.study = (level) => {
-    if (study.level !== level) {
-      study.level = level;
-      study.order = shuffle(DATA.vocab[level].map((_, i) => i));
+  // id は「覚えた」管理の名前空間（組み込みはレベル名のまま＝後方互換、デッキは deck_<id>）
+  function startStudy(id, cards, back, title) {
+    if (study.id !== id) {
+      study.id = id;
+      study.cards = cards;
+      study.back = back;
+      study.title = title;
+      study.order = shuffle(cards.map((_, i) => i));
       study.pos = 0;
       study.sinceQuiz = 0;
       study.recent = [];
     }
     study.revealed = false;
     drawStudy();
+  }
+
+  routes.study = (level) => {
+    const label = LEVELS.find((l) => l.key === level).label;
+    startStudy(level, DATA.vocab[level], "vocab", "単語カード " + label);
   };
 
   function drawStudy() {
-    const cards = DATA.vocab[study.level];
+    const cards = study.cards;
     const learned = new Set(store.get("learned", []));
     const skipLearned = store.get("skipLearned", false);
     let tries = 0;
     while (skipLearned && tries < cards.length) {
       const c = cards[study.order[study.pos]];
-      if (!learned.has(study.level + "_" + c.w)) break;
+      if (!learned.has(study.id + "_" + c.w)) break;
       study.pos = (study.pos + 1) % cards.length;
       tries++;
     }
     const card = cards[study.order[study.pos]];
-    const label = LEVELS.find((l) => l.key === study.level).label;
-    const done = cards.filter((c) => learned.has(study.level + "_" + c.w)).length;
+    const done = cards.filter((c) => learned.has(study.id + "_" + c.w)).length;
 
-    view.innerHTML = topbar("単語カード " + label, "vocab") + `
+    view.innerHTML = topbar(study.title, study.back) + `
       <div class="progress-line">
         <span>${study.pos + 1} / ${cards.length}</span>
         <span class="learned">覚えた ${done}語</span>
@@ -230,14 +243,14 @@
   }
 
   function mark(card, ok) {
-    const id = study.level + "_" + card.w;
+    const id = study.id + "_" + card.w;
     const learned = new Set(store.get("learned", []));
     if (ok) learned.add(id); else learned.delete(id);
     store.set("learned", [...learned]);
     study.recent.push(card);
     if (study.recent.length > 12) study.recent.shift();
     study.sinceQuiz++;
-    study.pos = (study.pos + 1) % DATA.vocab[study.level].length;
+    study.pos = (study.pos + 1) % study.cards.length;
     study.revealed = false;
     if (study.sinceQuiz >= 10) {
       study.sinceQuiz = 0;
@@ -251,9 +264,10 @@
   const quiz = { qs: [], pos: 0, score: 0 };
 
   function startQuiz() {
-    const pool = DATA.vocab[study.level];
+    const pool = study.cards;
     const qs = shuffle([...study.recent]).slice(0, 5).map((card) => {
-      const wrong = shuffle(pool.filter((c) => c.m !== card.m)).slice(0, 3).map((c) => c.m);
+      const others = [...new Set(pool.filter((c) => c.m !== card.m).map((c) => c.m))];
+      const wrong = shuffle(others).slice(0, 3);
       return { card, opts: shuffle([card.m, ...wrong]) };
     });
     quiz.qs = qs; quiz.pos = 0; quiz.score = 0;
@@ -263,7 +277,7 @@
   function drawQuiz() {
     if (quiz.pos >= quiz.qs.length) {
       const perfect = quiz.score === quiz.qs.length;
-      view.innerHTML = topbar("確認テスト", "vocab") + `
+      view.innerHTML = topbar("確認テスト", study.back) + `
         <div class="card">
           <div class="quiz-score" style="color:${perfect ? "var(--gold)" : "var(--fg)"}">
             ${perfect ? "🎉 満点！" : "結果"} ${quiz.score} / ${quiz.qs.length}
@@ -274,7 +288,7 @@
       return;
     }
     const q = quiz.qs[quiz.pos];
-    view.innerHTML = topbar(`確認テスト ${quiz.pos + 1}/${quiz.qs.length}`, "vocab") + `
+    view.innerHTML = topbar(`確認テスト ${quiz.pos + 1}/${quiz.qs.length}`, study.back) + `
       <div class="card">
         <div class="quiz-q">${esc(q.card.w)}</div>
         ${C.hasPinyin ? `<div class="quiz-p">${esc(q.card.p)}</div>` : ""}
@@ -566,6 +580,136 @@
       };
     });
   };
+
+  /* ===== レッスン復習（先生のメモ → AIが復習カード化） ===== */
+  function getDecks() { return store.get("decks", []); }
+  function saveDecks(d) { store.set("decks", d); }
+
+  routes.lessons = () => {
+    const decks = getDecks();
+    view.innerHTML = topbar("レッスン復習", "home") +
+      `<button class="btn" style="margin-bottom:18px" onclick="location.hash='lessonnew'">＋ 先生のメモから作成</button>` +
+      (decks.length === 0
+        ? `<div class="empty">オンラインレッスンで先生が書いてくれた単語・表現・チャットを貼り付けると、AIが復習用の単語カードと例文を作ります。<br><br>作った復習カードはここに保存され、いつでも学習できます。</div>`
+        : decks.map((d) => `
+          <div class="card" style="margin-bottom:14px">
+            <div style="font-size:1.2rem;font-weight:800">${esc(d.title)}</div>
+            <div style="color:var(--fg-sub);font-weight:600;margin:4px 0 14px">${esc(d.date)}｜${d.cards.length}語</div>
+            <button class="btn" onclick="location.hash='deckstudy/${d.id}'">▶︎ 学習する</button>
+            <div class="row" style="margin-top:10px">
+              <button class="btn ghost small" data-dl="${d.id}">⬇ 書き出し</button>
+              <button class="btn ghost small" data-del="${d.id}">🗑 削除</button>
+            </div>
+          </div>`).join(""));
+    view.querySelectorAll("[data-dl]").forEach((b) => (b.onclick = () => downloadDeck(b.dataset.dl)));
+    view.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => {
+      if (!confirm("この復習カードを削除しますか？")) return;
+      saveDecks(getDecks().filter((x) => x.id !== b.dataset.del));
+      routes.lessons();
+    }));
+  };
+
+  routes.deckstudy = (id) => {
+    const deck = getDecks().find((d) => d.id === id);
+    if (!deck) { location.hash = "lessons"; return; }
+    startStudy("deck_" + id, deck.cards, "lessons", deck.title);
+  };
+
+  routes.lessonnew = () => {
+    view.innerHTML = topbar("先生のメモから作成", "lessons") + `
+      <p class="note" style="margin-top:0">レッスンで先生が書いてくれた単語・表現・チャットの内容を、そのまま貼り付けてください。AIが復習用の単語カードと例文を作ります。</p>
+      <input class="input" id="title" style="min-height:auto;margin-bottom:12px" placeholder="タイトル（例：7/2 オンラインレッスン）">
+      <textarea class="input" id="notes" placeholder="ここに先生のメモやチャットを貼り付け"></textarea>
+      <div style="height:12px"></div>
+      <button class="btn" id="make">復習カードを作成</button>
+      <div id="mkout"></div>`;
+    $("#make").onclick = makeDeck;
+  };
+
+  async function makeDeck() {
+    const text = $("#notes").value.trim();
+    if (!text) { toast("メモを貼り付けてください"); return; }
+    if (!C.aiKey) { $("#mkout").innerHTML = `<p class="note" style="color:var(--ng)">AI機能が利用できないため、復習カードを作成できません。</p>`; return; }
+    const btn = $("#make");
+    btn.disabled = true;
+    btn.textContent = "作成中…（10〜20秒ほど）";
+    try {
+      const cards = await extractDeck(text);
+      if (!cards.length) throw new Error("empty");
+      const now = new Date();
+      const date = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+      const title = $("#title").value.trim() || (date + " のレッスン");
+      const deck = { id: Date.now().toString(36), title, date, cards };
+      saveDecks([deck, ...getDecks()]);
+      toast(`${cards.length}語の復習カードを作成しました`);
+      location.hash = "deckstudy/" + deck.id;
+    } catch {
+      $("#mkout").innerHTML = `<p class="note" style="color:var(--ng)">うまく作成できませんでした。貼り付ける文章を短くするか、少し時間をおいてもう一度お試しください。</p>`;
+      btn.disabled = false;
+      btn.textContent = "復習カードを作成";
+    }
+  }
+
+  async function extractDeck(text) {
+    const schema = C.hasPinyin
+      ? `各項目のキーは "w"(簡体字の語・表現), "p"(ピンイン・声調記号つき), "m"(日本語の意味), "e"(その語を使った自然な中国語の例文), "ep"(例文のピンイン), "ej"(例文の日本語訳)。`
+      : `各項目のキーは "w"(英単語または熟語・表現), "m"(日本語の意味), "e"(その語を使った自然な英語の例文), "ej"(例文の日本語訳)。`;
+    const prompt = `あなたは${C.aiName}のプロ講師です。以下はオンラインレッスンで先生が書いてくれたメモやチャットの内容です。この中から、生徒が後で復習すべき重要な単語・熟語・表現を抜き出し、復習用カードを作ってください。
+条件:
+- レッスンに実際に登場した語や表現を優先する
+- 例文はその語の使い方が分かる自然なものにする
+- 10〜20項目程度。重複は除く
+- 出力はJSON配列のみ。前後に説明文やコードブロックを付けない
+- ${schema}
+
+--- レッスンのメモ ---
+${text}`;
+    // Geminiは一時的に503/429を返すことがあるため、指数バックオフで数回リトライ
+    let json = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${C.aiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.3, responseMimeType: "application/json" } }),
+      });
+      if (res.ok) { json = await res.json(); break; }
+      if (res.status !== 503 && res.status !== 429 && res.status !== 500) throw new Error("http " + res.status);
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+    if (!json) throw new Error("busy");
+    const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
+    const raw = parts.map((p) => p.text || "").join("").trim();
+    let parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) parsed = parsed.cards || parsed.items || parsed.list || [];
+    return parsed
+      .filter((c) => c && c.w && c.m)
+      .slice(0, 40)
+      .map((c) => ({ w: c.w, p: c.p || "", m: c.m, e: c.e || "", ep: c.ep || "", ej: c.ej || "" }));
+  }
+
+  function downloadDeck(id) {
+    const deck = getDecks().find((d) => d.id === id);
+    if (!deck) return;
+    const lines = deck.cards.map((c, i) => {
+      let s = `${i + 1}. ${c.w}`;
+      if (C.hasPinyin && c.p) s += `（${c.p}）`;
+      s += `\n   意味: ${c.m}`;
+      if (c.e) s += `\n   例文: ${c.e}`;
+      if (C.hasPinyin && c.ep) s += `\n   例文ピンイン: ${c.ep}`;
+      if (c.ej) s += `\n   訳: ${c.ej}`;
+      return s;
+    });
+    const body = `${deck.title}（${deck.date}）\n${C.name} 復習カード\n\n${lines.join("\n\n")}\n`;
+    const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${deck.title}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   function shuffle(a) {
     const arr = [...a];
