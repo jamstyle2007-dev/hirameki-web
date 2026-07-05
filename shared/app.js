@@ -23,14 +23,16 @@
   const speech = {
     voices: [],
     audio: null,        // 事前生成音声の再生用（使い回してキャンセル可能に）
-    manifest: null,     // { テキスト: "xxxx.mp3" } 事前生成音声の対応表
-    audioBase: "",      // 事前生成音声フォルダのURL（例: ../audio/eikaiwa/）
+    audioUrl: null,     // 直近再生のObjectURL（後始末用）
+    seq: 0,             // 再生トークン（非同期取得中に次の発話が来たら破棄する）
+    pack: "",           // 連結音声パックのURL（例: ../audio/eikaiwa/pack.mp3）
+    clips: null,        // { テキスト: [byteOffset, byteLength] } 事前生成音声の索引
+    audioBase: "",      // 事前生成音声フォルダのURL
     load() { this.voices = speechSynthesis.getVoices(); },
-    // 事前生成音声のURLを返す（無ければ null）
-    fileFor(text) {
-      if (!this.manifest || !text) return null;
-      const fn = this.manifest[text.trim()];
-      return fn ? this.audioBase + fn : null;
+    // 事前生成音声のバイト範囲 [offset,len] を返す（無ければ null）
+    clipFor(text) {
+      if (!this.clips || !text) return null;
+      return this.clips[text.trim()] || null;
     },
     candidates(lang) {
       const exact = this.voices.filter((v) => v.lang.replace("_", "-") === lang);
@@ -58,20 +60,41 @@
     // 事前生成音声(Aria等の高品質女性音声)を優先し、無ければ端末の音声にフォールバック
     speak(text, lang, rate = 0.9, onend = null) {
       this.stop();
-      const url = this.fileFor(text);
-      if (url) {
-        const a = new Audio(url);
-        this.audio = a;
-        try { a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true; } catch (e) {}
-        a.playbackRate = Math.max(0.5, Math.min(1.2, rate + 0.05)); // 生成は等速なので少しだけ補正
-        if (onend) a.onended = onend;
-        // 音声ファイルが無い/再生不可なら端末音声へフォールバック
-        a.onerror = () => { if (this.audio === a) this.audio = null; this.speakDevice(text, lang, rate, onend); };
-        const p = a.play();
-        if (p && p.catch) p.catch(() => { if (this.audio === a) this.audio = null; this.speakDevice(text, lang, rate, onend); });
-        return a;
+      const clip = this.clipFor(text);
+      if (clip && this.pack) {
+        const mySeq = ++this.seq;
+        this.playClip(clip, rate, onend, mySeq).catch(() => {
+          // 取得/再生に失敗し、かつ他の発話に切り替わっていなければ端末音声へ
+          if (this.seq === mySeq) this.speakDevice(text, lang, rate, onend);
+        });
+        return;
       }
       return this.speakDevice(text, lang, rate, onend);
+    },
+    // パックから該当バイト範囲だけを取得して再生（範囲バイト列はそのまま単体mp3として有効）
+    playClip(clip, rate, onend, mySeq) {
+      const [start, len] = clip;
+      return fetch(this.pack, { headers: { Range: `bytes=${start}-${start + len - 1}` } })
+        .then((res) => {
+          if (res.status !== 206 && res.status !== 200) throw new Error("range " + res.status);
+          return res.blob().then((b) => ({ status: res.status, blob: b }));
+        })
+        .then(({ status, blob }) => {
+          // Rangeが無視され全体が返った場合のみ、クライアント側で切り出す（MIME型を保持）
+          if (status === 200 && blob.size > len) blob = blob.slice(start, start + len, blob.type || "audio/mpeg");
+          if (this.seq !== mySeq) return; // 取得中に次の発話が来ていたら破棄
+          return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(blob);
+            const a = new Audio(url);
+            this.audio = a; this.audioUrl = url;
+            try { a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true; } catch (e) {}
+            a.playbackRate = Math.max(0.5, Math.min(1.2, rate + 0.05)); // 生成は等速なので少し補正
+            const cleanup = () => { try { URL.revokeObjectURL(url); } catch (e) {} };
+            a.onended = () => { cleanup(); resolve(); if (onend) onend(); };
+            a.onerror = () => { cleanup(); reject(new Error("audio error")); };
+            a.play().catch(reject);
+          });
+        });
     },
     // 端末内蔵の音声合成（従来ロジック）
     speakDevice(text, lang, rate = 0.9, onend = null) {
@@ -99,8 +122,10 @@
       step(0);
     },
     stop() {
+      this.seq++; // 進行中の非同期取得を無効化する
       speechSynthesis.cancel();
       if (this.audio) { try { this.audio.onended = null; this.audio.onerror = null; this.audio.pause(); } catch (e) {} this.audio = null; }
+      if (this.audioUrl) { try { URL.revokeObjectURL(this.audioUrl); } catch (e) {} this.audioUrl = null; }
     },
   };
   speech.load();
@@ -821,7 +846,9 @@ ${text}`;
   speech.audioBase = C.dataUrl.replace("/data/", "/audio/").replace(/\.json$/, "/");
   fetch(speech.audioBase + "manifest.json")
     .then((r) => (r.ok ? r.json() : null))
-    .then((m) => { if (m) speech.manifest = m; })
+    .then((m) => {
+      if (m && m.clips) { speech.clips = m.clips; speech.pack = speech.audioBase + (m.pack || "pack.mp3"); }
+    })
     .catch(() => {});
 
   fetch(C.dataUrl)

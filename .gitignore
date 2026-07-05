@@ -1,1 +1,6 @@
 shared/config.local.js
+
+# 事前生成音声の個別クリップは配信しない（pack.mp3へ連結・GitHub Pagesのファイル数制限を回避）
+# ローカルには残してパック再生成に使う
+audio/*/*.mp3
+!audio/*/pack.mp3
