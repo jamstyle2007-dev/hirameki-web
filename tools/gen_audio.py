@@ -23,8 +23,19 @@ LANGS = {
     "spanish":  ("data/spanish.json", "spanish", "es-ES-ElviraNeural"),
 }
 
+JA_VOICE = "ja-JP-NanamiNeural"  # 日本語訳はWindowsと同じNanamiで統一する
+
 def h(text):
     return hashlib.md5(text.encode("utf-8")).hexdigest()[:16]
+
+def collect_ja(data):
+    """本文(シャドーイング/聞き流し)の日本語訳を集める。これはNanamiで読み上げる。"""
+    texts = set()
+    for kind in ("shadowing", "listening"):
+        for book in data.get("books", {}).get(kind, []):
+            for s in book.get("sentences", []):
+                if s.get("ja"): texts.add(s["ja"].strip())
+    return sorted(t for t in texts if t)
 
 def collect_texts(data, levels, include_books):
     """発音対象の外国語テキストを集める（重複除去）。日本語(m/ej/ja)は対象外。"""
@@ -64,36 +75,46 @@ async def main():
     ap.add_argument("langkey", choices=LANGS.keys())
     ap.add_argument("--levels", default="beginner,intermediate,advanced")
     ap.add_argument("--books", action="store_true")
+    ap.add_argument("--ja", action="store_true", help="本文の日本語訳もNanami音声で生成")
     ap.add_argument("--concurrency", type=int, default=6)
     args = ap.parse_args()
 
     datafile, outdir, voice = LANGS[args.langkey]
     levels = [x.strip() for x in args.levels.split(",") if x.strip()]
     data = json.load(open(os.path.join(ROOT, datafile), encoding="utf-8"))
-    texts = collect_texts(data, levels, args.books)
+
+    # テキスト→音声名 の対応（外国語=言語の声、日本語訳=Nanami）
+    voice_map = {}
+    for t in collect_texts(data, levels, args.books):
+        voice_map[t] = voice
+    if args.ja:
+        for t in collect_ja(data):
+            voice_map.setdefault(t, JA_VOICE)  # 既存キーは上書きしない
 
     audio_dir = os.path.join(ROOT, "audio", outdir)
     os.makedirs(audio_dir, exist_ok=True)
 
-    # 既存マニフェストを読み込み（追記マージ）
+    # 既存マニフェストを読み込み（text->filename形式のみ追記マージ。pack形式なら作り直す）
     man_path = os.path.join(audio_dir, "manifest.json")
     manifest = {}
     if os.path.exists(man_path):
-        manifest = json.load(open(man_path, encoding="utf-8"))
+        old = json.load(open(man_path, encoding="utf-8"))
+        if isinstance(old, dict) and "clips" not in old:
+            manifest = old
 
-    print(f"[{args.langkey}] 音声={voice} levels={levels} books={args.books}")
-    print(f"対象テキスト {len(texts)} 件 -> {audio_dir}")
+    print(f"[{args.langkey}] 外国語={voice} / 日本語={JA_VOICE if args.ja else '-'} levels={levels} books={args.books}")
+    print(f"対象テキスト {len(voice_map)} 件（うち日本語訳 {sum(1 for v in voice_map.values() if v==JA_VOICE)} 件）-> {audio_dir}")
 
     sem = asyncio.Semaphore(args.concurrency)
     tasks, todo = [], []
-    for t in texts:
+    for t, v in voice_map.items():
         fn = h(t) + ".mp3"
         manifest[t] = fn  # マニフェストは常に最新化
         fp = os.path.join(audio_dir, fn)
         if os.path.exists(fp) and os.path.getsize(fp) > 0:
             continue  # 生成済みはスキップ
         todo.append(t)
-        tasks.append(gen_one(sem, voice, t, fp))
+        tasks.append(gen_one(sem, v, t, fp))
 
     print(f"未生成 {len(todo)} 件を生成します…")
     done = 0
