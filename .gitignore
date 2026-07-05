@@ -4,3 +4,7 @@ shared/config.local.js
 # ローカルには残してパック再生成に使う
 audio/*/*.mp3
 !audio/*/pack.mp3
+# 韓/仏/西のpackはjack-invest.comサーバーに置くため本体repoには含めない（Pages容量上限対策）
+audio/korean/pack.mp3
+audio/french/pack.mp3
+audio/spanish/pack.mp3

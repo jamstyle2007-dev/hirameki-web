@@ -844,11 +844,16 @@ ${text}`;
   // 事前生成音声のマニフェストを読み込む（dataUrl の /data/xxx.json → /audio/xxx/ から）。
   // 無くても端末音声で動くので、失敗は無視する。
   speech.audioBase = C.dataUrl.replace("/data/", "/audio/").replace(/\.json$/, "/");
-  const AUDIO_V = "8"; // 音声pack/manifestのキャッシュ更新用。packを作り直したら+1する（offsetが変わるため）
+  const AUDIO_V = "9"; // 音声pack/manifestのキャッシュ更新用。packを作り直したら+1する（offsetが変わるため）
   fetch(speech.audioBase + "manifest.json?v=" + AUDIO_V)
     .then((r) => (r.ok ? r.json() : null))
     .then((m) => {
-      if (m && m.clips) { speech.clips = m.clips; speech.pack = speech.audioBase + (m.pack || "pack.mp3") + "?v=" + AUDIO_V; }
+      if (m && m.clips) {
+        speech.clips = m.clips;
+        // packは同一オリジン(相対パス)か、別ホスト(絶対URL・容量の大きい言語はjack-invest.comに配置)
+        const ref = m.pack || "pack.mp3";
+        speech.pack = (/^https?:\/\//.test(ref) ? ref : speech.audioBase + ref) + "?v=" + AUDIO_V;
+      }
     })
     .catch(() => {});
 
