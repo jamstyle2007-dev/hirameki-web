@@ -22,7 +22,16 @@
   /* ===== TTS ===== */
   const speech = {
     voices: [],
+    audio: null,        // 事前生成音声の再生用（使い回してキャンセル可能に）
+    manifest: null,     // { テキスト: "xxxx.mp3" } 事前生成音声の対応表
+    audioBase: "",      // 事前生成音声フォルダのURL（例: ../audio/eikaiwa/）
     load() { this.voices = speechSynthesis.getVoices(); },
+    // 事前生成音声のURLを返す（無ければ null）
+    fileFor(text) {
+      if (!this.manifest || !text) return null;
+      const fn = this.manifest[text.trim()];
+      return fn ? this.audioBase + fn : null;
+    },
     candidates(lang) {
       const exact = this.voices.filter((v) => v.lang.replace("_", "-") === lang);
       if (exact.length) return exact;
@@ -46,7 +55,26 @@
       if (stored) return stored;
       return [...cands].sort((a, b) => this.score(b) - this.score(a))[0];
     },
+    // 事前生成音声(Aria等の高品質女性音声)を優先し、無ければ端末の音声にフォールバック
     speak(text, lang, rate = 0.9, onend = null) {
+      this.stop();
+      const url = this.fileFor(text);
+      if (url) {
+        const a = new Audio(url);
+        this.audio = a;
+        try { a.preservesPitch = true; a.mozPreservesPitch = true; a.webkitPreservesPitch = true; } catch (e) {}
+        a.playbackRate = Math.max(0.5, Math.min(1.2, rate + 0.05)); // 生成は等速なので少しだけ補正
+        if (onend) a.onended = onend;
+        // 音声ファイルが無い/再生不可なら端末音声へフォールバック
+        a.onerror = () => { if (this.audio === a) this.audio = null; this.speakDevice(text, lang, rate, onend); };
+        const p = a.play();
+        if (p && p.catch) p.catch(() => { if (this.audio === a) this.audio = null; this.speakDevice(text, lang, rate, onend); });
+        return a;
+      }
+      return this.speakDevice(text, lang, rate, onend);
+    },
+    // 端末内蔵の音声合成（従来ロジック）
+    speakDevice(text, lang, rate = 0.9, onend = null) {
       // 前回の発話が残っていると2回目以降が鳴らなくなるため、毎回リセットしてから発話する
       speechSynthesis.cancel();
       // Chromeで一時停止状態のまま詰まることがあるので念のため解除
@@ -61,7 +89,19 @@
       speechSynthesis.speak(u);
       return u;
     },
-    stop() { speechSynthesis.cancel(); },
+    // 複数テキストを順番に読み上げ（単語→例文など）。各パートが事前音声/端末音声を自動選択
+    speakSeq(parts, lang, rate = 0.9, onend = null) {
+      const list = parts.filter((t) => t && t.trim());
+      const step = (i) => {
+        if (i >= list.length) { if (onend) onend(); return; }
+        this.speak(list[i], lang, rate, () => step(i + 1));
+      };
+      step(0);
+    },
+    stop() {
+      speechSynthesis.cancel();
+      if (this.audio) { try { this.audio.onended = null; this.audio.onerror = null; this.audio.pause(); } catch (e) {} this.audio = null; }
+    },
   };
   speech.load();
   speechSynthesis.onvoiceschanged = () => {
@@ -240,7 +280,9 @@
         drawStudy();
       }
     };
-    $("#speak").onclick = () => speech.speak(study.revealed ? card.w + ". " + card.e : card.w, C.lang, C.rateNormal);
+    $("#speak").onclick = () => study.revealed
+      ? speech.speakSeq([card.w, card.e], C.lang, C.rateNormal)
+      : speech.speak(card.w, C.lang, C.rateNormal);
     $("#skip").onchange = (e) => store.set("skipLearned", e.target.checked);
     $("#know").onclick = () => mark(card, true);
     $("#dontknow").onclick = () => mark(card, false);
@@ -774,6 +816,14 @@ ${text}`;
   }
 
   /* ===== 起動 ===== */
+  // 事前生成音声のマニフェストを読み込む（dataUrl の /data/xxx.json → /audio/xxx/ から）。
+  // 無くても端末音声で動くので、失敗は無視する。
+  speech.audioBase = C.dataUrl.replace("/data/", "/audio/").replace(/\.json$/, "/");
+  fetch(speech.audioBase + "manifest.json")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((m) => { if (m) speech.manifest = m; })
+    .catch(() => {});
+
   fetch(C.dataUrl)
     .then((r) => r.json())
     .then((d) => { DATA = d; render(); })
