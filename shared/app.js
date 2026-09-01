@@ -20,6 +20,9 @@
   ];
 
   /* ===== TTS ===== */
+  // Android WebView等、window.speechSynthesisが存在しない環境でも
+  // 事前生成音声(pack)だけで動くようにする（無ければ端末音声機能は静かに無効化）
+  const hasDeviceTTS = typeof speechSynthesis !== "undefined";
   const speech = {
     voices: [],
     audio: null,        // 事前生成音声の再生用（使い回してキャンセル可能に）
@@ -28,7 +31,7 @@
     pack: "",           // 連結音声パックのURL（例: ../audio/eikaiwa/pack.mp3）
     clips: null,        // { テキスト: [byteOffset, byteLength] } 事前生成音声の索引
     audioBase: "",      // 事前生成音声フォルダのURL
-    load() { this.voices = speechSynthesis.getVoices(); },
+    load() { this.voices = hasDeviceTTS ? speechSynthesis.getVoices() : []; },
     // 事前生成音声のバイト範囲 [offset,len] を返す（無ければ null）
     clipFor(text) {
       if (!this.clips || !text) return null;
@@ -77,11 +80,17 @@
       return fetch(this.pack, { headers: { Range: `bytes=${start}-${start + len - 1}` } })
         .then((res) => {
           if (res.status !== 206 && res.status !== 200) throw new Error("range " + res.status);
-          return res.blob().then((b) => ({ status: res.status, blob: b }));
+          // Content-Rangeで実際の開始位置を確認する（Android WebViewのローカル資産配信は
+          // 開始位置だけ尊重し終端は無視してファイル末尾まで返すことがあるため、
+          // 「サイズが違えば切り出す」だけでは基準点を誤る。ヘッダーが無ければ200(全体)とみなす）
+          const cr = res.headers.get("Content-Range");
+          const m = cr && /bytes (\d+)-/.exec(cr);
+          const rangeStart = m ? parseInt(m[1], 10) : 0;
+          return res.blob().then((blob) => ({ blob, rangeStart }));
         })
-        .then(({ status, blob }) => {
-          // Rangeが無視され全体が返った場合のみ、クライアント側で切り出す（MIME型を保持）
-          if (status === 200 && blob.size > len) blob = blob.slice(start, start + len, blob.type || "audio/mpeg");
+        .then(({ blob, rangeStart }) => {
+          const offset = start - rangeStart;
+          if (offset !== 0 || blob.size !== len) blob = blob.slice(offset, offset + len, blob.type || "audio/mpeg");
           if (this.seq !== mySeq) return; // 取得中に次の発話が来ていたら破棄
           return new Promise((resolve, reject) => {
             const url = URL.createObjectURL(blob);
@@ -96,8 +105,9 @@
           });
         });
     },
-    // 端末内蔵の音声合成（従来ロジック）
+    // 端末内蔵の音声合成（従来ロジック）。無い環境（Android WebView等）では何もしない
     speakDevice(text, lang, rate = 0.9, onend = null) {
+      if (!hasDeviceTTS) { if (onend) onend(); return null; }
       // 前回の発話が残っていると2回目以降が鳴らなくなるため、毎回リセットしてから発話する
       speechSynthesis.cancel();
       // Chromeで一時停止状態のまま詰まることがあるので念のため解除
@@ -123,13 +133,13 @@
     },
     stop() {
       this.seq++; // 進行中の非同期取得を無効化する
-      speechSynthesis.cancel();
+      if (hasDeviceTTS) speechSynthesis.cancel();
       if (this.audio) { try { this.audio.onended = null; this.audio.onerror = null; this.audio.pause(); } catch (e) {} this.audio = null; }
       if (this.audioUrl) { try { URL.revokeObjectURL(this.audioUrl); } catch (e) {} this.audioUrl = null; }
     },
   };
   speech.load();
-  speechSynthesis.onvoiceschanged = () => {
+  if (hasDeviceTTS) speechSynthesis.onvoiceschanged = () => {
     speech.load();
     if (location.hash === "#settings" && routes.settings) routes.settings();
   };
@@ -510,6 +520,7 @@
   /* ===== 翻訳 ===== */
   routes.translate = () => {
     const dir = store.get("transDir", "toForeign");
+    const autoSpeak = store.get("transAutoSpeak", true);
     view.innerHTML = topbar("翻訳", "home") + `
       <div class="seg" id="dirseg">
         <button data-d="toForeign" class="${dir === "toForeign" ? "on" : ""}">日本語 → ${esc(C.langLabel)}</button>
@@ -519,12 +530,16 @@
       <textarea class="input" id="src" placeholder="${dir === "toForeign" ? "例：おはようございます" : C.examplePlaceholder}"></textarea>
       <div style="height:12px"></div>
       <button class="btn" id="go">${dir === "toForeign" ? esc(C.langLabel) + "に変換" : "日本語に変換"}</button>
+      <div class="card" style="margin-top:14px;padding:2px 18px">
+        <div class="opt-row"><span>🔊 自動で読み上げ</span><input type="checkbox" class="toggle" id="autospeak" ${autoSpeak ? "checked" : ""}></div>
+      </div>
       <div id="out"></div>
       <p class="note">インターネット接続を使って翻訳します。長い文は分けて入力すると、より正確になります。</p>`;
 
     view.querySelectorAll("#dirseg button").forEach((b) => {
       b.onclick = () => { store.set("transDir", b.dataset.d); routes.translate(); };
     });
+    $("#autospeak").onchange = (e) => store.set("transAutoSpeak", e.target.checked);
     $("#go").onclick = doTranslate;
   };
 
@@ -588,7 +603,7 @@
         store.set("phrases", phrases);
         toast("保存しました");
       };
-      speech.speak(foreign, C.lang, C.rateNormal);
+      if (store.get("transAutoSpeak", true)) speech.speak(foreign, C.lang, C.rateNormal);
     } catch {
       $("#out").innerHTML = `<p class="note" style="color:var(--ng)">翻訳できませんでした。少し時間をおいて、もう一度お試しください。</p>`;
     }
@@ -843,7 +858,8 @@ ${text}`;
   /* ===== 起動 ===== */
   // 事前生成音声のマニフェストを読み込む（dataUrl の /data/xxx.json → /audio/xxx/ から）。
   // 無くても端末音声で動くので、失敗は無視する。
-  speech.audioBase = C.dataUrl.replace("/data/", "/audio/").replace(/\.json$/, "/");
+  // dataUrlの前置（"../"の有無等）に依存せず"data/xxx.json"部分だけをaudio/xxx/に変換する
+  speech.audioBase = C.dataUrl.replace(/data\/([^/]+)\.json$/, "audio/$1/");
   const AUDIO_V = "9"; // 音声pack/manifestのキャッシュ更新用。packを作り直したら+1する（offsetが変わるため）
   fetch(speech.audioBase + "manifest.json?v=" + AUDIO_V)
     .then((r) => (r.ok ? r.json() : null))
