@@ -590,8 +590,10 @@
     const n = word.trim().toLowerCase().replace(/[.!?。！？、,]+$/, "");
     if (!n) return null;
     const esc2 = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // 語尾が変わった形（promise→promised, eat→eating, cat→cats）も同じ語とみなす。
+    // ただし別の語（cat→category）には当たらないよう、よくある語尾だけを許す
     const latin = /^[a-zà-ÿ' -]+$/i.test(n)
-      ? new RegExp(`(^|[^a-zà-ÿ'])${esc2}([^a-zà-ÿ']|$)`, "i") : null;
+      ? new RegExp(`(^|[^a-zà-ÿ'])${esc2}(s|es|d|ed|ing|r|rs)?([^a-zà-ÿ']|$)`, "i") : null;
     // 漢字1文字は他の語の一部に紛れ込みやすい（「水」が「水果」に当たる等）ので拾い読みはしない
     const canScan = !!latin || n.length >= 2;
     return { n, canScan, test: (s) => (latin ? latin.test(String(s)) : String(s).toLowerCase().includes(n)) };
