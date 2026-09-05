@@ -576,6 +576,108 @@
     return (json.responseData && json.responseData.translatedText || "").trim();
   }
 
+  /* ===== 例文（翻訳した語の使い方を見せる） ===== */
+  // 単語や短い言い回しのときだけ例文を出す（長い文を訳したときは出さない）
+  function isShortPhrase(text) {
+    const t = (text || "").trim();
+    if (!t || t.length > 26) return false;
+    if (/[.!?。！？]\s*\S/.test(t)) return false;             // 文が2つ以上あれば単語ではない
+    return t.split(/\s+/).filter(Boolean).length <= 3;
+  }
+
+  // アルファベット語は語の切れ目で一致させる（cat が category に当たらないように）
+  function makeMatcher(word) {
+    const n = word.trim().toLowerCase().replace(/[.!?。！？、,]+$/, "");
+    if (!n) return null;
+    const esc2 = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const latin = /^[a-zà-ÿ' -]+$/i.test(n)
+      ? new RegExp(`(^|[^a-zà-ÿ'])${esc2}([^a-zà-ÿ']|$)`, "i") : null;
+    // 漢字1文字は他の語の一部に紛れ込みやすい（「水」が「水果」に当たる等）ので拾い読みはしない
+    const canScan = !!latin || n.length >= 2;
+    return { n, canScan, test: (s) => (latin ? latin.test(String(s)) : String(s).toLowerCase().includes(n)) };
+  }
+
+  // 収録データ（単語カード・例文集）から、その語を使った文を拾う（通信なし・確実に自然な文）
+  function localExamples(word, limit) {
+    const m = makeMatcher(word);
+    if (!m || !DATA) return [];
+    const out = [], seen = new Set();
+    const push = (t, ja) => {
+      const k = String(t || "").trim();
+      if (!k || seen.has(k) || out.length >= limit) return;
+      seen.add(k);
+      out.push({ t: k, ja: String(ja || "").trim() });
+    };
+    const levels = ["beginner", "intermediate", "advanced"];
+    // 1) 見出し語がぴたりと一致する単語カードの例文を最優先
+    for (const lv of levels) for (const it of (DATA.vocab && DATA.vocab[lv]) || []) {
+      if (it.e && it.w && it.w.trim().toLowerCase() === m.n) push(it.e, it.ej);
+    }
+    if (m.canScan) {
+      // 2) 単語カードの例文の中に出てくるもの
+      for (const lv of levels) for (const it of (DATA.vocab && DATA.vocab[lv]) || []) {
+        if (it.e && m.test(it.e)) push(it.e, it.ej);
+      }
+      // 3) シャドーイング・聞き流しの文の中に出てくるもの
+      for (const mode of Object.keys(DATA.books || {})) {
+        for (const b of DATA.books[mode] || []) for (const s of b.sentences || []) {
+          if (s.t && m.test(s.t)) push(s.t, s.ja);
+        }
+      }
+    }
+    return out;
+  }
+
+  // 足りない分をAIに作ってもらう（キー未設定・失敗時は空を返す）
+  async function aiExamples(word, want) {
+    if (!C.aiKey || want <= 0) return [];
+    const prompt = `${C.aiName}の「${word}」を使った例文を${want}つ作ってください。
+・日常でよく使う、短くてやさしい文にする
+・それぞれに自然な日本語訳をつける
+・次の形のJSON配列だけを出力し、説明文は書かないでください
+[{"t":"${C.aiName}の例文","ja":"日本語訳"}]`;
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${C.aiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } }),
+      });
+      const json = await res.json();
+      const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
+      const raw = parts.map((p) => p.text || "").join("");
+      const arr = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));
+      return arr.filter((x) => x && x.t)
+        .map((x) => ({ t: String(x.t).trim(), ja: String(x.ja || "").trim() })).slice(0, want);
+    } catch { return []; }
+  }
+
+  // 翻訳結果の下に例文カードを出す（収録データ→足りなければAIの順）
+  async function showExamples(foreign) {
+    const wrap = $("#exwrap");
+    if (!wrap || !isShortPhrase(foreign)) return;
+    const key = "ex." + C.mmLang + "." + foreign.trim().toLowerCase();
+    let list = store.get(key, null);
+    if (!list) {
+      list = localExamples(foreign, 3);
+      if (list.length < 3 && C.aiKey) {
+        wrap.innerHTML = `<p class="note">例文をさがしています…</p>`;
+        list = list.concat(await aiExamples(foreign, 3 - list.length)).slice(0, 3);
+      }
+      if (list.length) store.set(key, list);
+    }
+    if (!list.length) { wrap.innerHTML = ""; return; }
+    wrap.innerHTML = `<div class="card ex-box">
+        <div class="ex-head">「${esc(foreign)}」を つかった 例文</div>
+        ${list.map((x, i) => `<div class="ex-row">
+            <button class="btn speak small ex-play" data-i="${i}">🔊</button>
+            <div><div class="ex-t">${esc(x.t)}</div>${x.ja ? `<div class="ex-ja">${esc(x.ja)}</div>` : ""}</div>
+          </div>`).join("")}
+      </div>`;
+    wrap.querySelectorAll(".ex-play").forEach((b) => {
+      b.onclick = () => speech.speak(list[+b.dataset.i].t, C.lang, C.rateNormal);
+    });
+  }
+
   async function doTranslate() {
     const text = $("#src").value.trim();
     if (!text) return;
@@ -595,7 +697,8 @@
             <button class="btn speak small" id="rspeak">🔊 発音</button>
             <button class="btn small" id="rsave">📒 保存</button>
           </div>
-        </div>`;
+        </div>
+        <div id="exwrap"></div>`;
       $("#rspeak").onclick = () => speech.speak(foreign, C.lang, C.rateNormal);
       $("#rsave").onclick = () => {
         const phrases = store.get("phrases", []);
@@ -604,6 +707,7 @@
         toast("保存しました");
       };
       if (store.get("transAutoSpeak", true)) speech.speak(foreign, C.lang, C.rateNormal);
+      showExamples(foreign);
     } catch {
       $("#out").innerHTML = `<p class="note" style="color:var(--ng)">翻訳できませんでした。少し時間をおいて、もう一度お試しください。</p>`;
     }

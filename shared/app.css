@@ -268,3 +268,11 @@ textarea.input::placeholder { color: rgba(255,255,255,0.4); }
   html { font-size: 19px; }
   .vocab-card .word { font-size: 3.6rem; }
 }
+
+/* ===== 翻訳の例文 ===== */
+.ex-box { margin-top: 14px; padding-top: 6px; }
+.ex-head { font-size: 1.05rem; font-weight: 800; color: var(--fg-sub); margin-bottom: 6px; line-height: 1.5; }
+.ex-row { display: flex; gap: 12px; align-items: flex-start; padding: 13px 0 3px; border-top: 1px solid rgba(255,255,255,0.1); }
+.ex-row .btn.speak.small { flex: none; padding: 10px 14px; }
+.ex-t { font-size: 1.18rem; font-weight: 800; line-height: 1.5; }
+.ex-ja { font-size: 0.98rem; font-weight: 600; color: var(--fg-sub); margin-top: 5px; line-height: 1.6; }
