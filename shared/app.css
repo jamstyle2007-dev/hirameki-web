@@ -276,3 +276,23 @@ textarea.input::placeholder { color: rgba(255,255,255,0.4); }
 .ex-row .btn.speak.small { flex: none; padding: 10px 14px; }
 .ex-t { font-size: 1.18rem; font-weight: 800; line-height: 1.5; }
 .ex-ja { font-size: 0.98rem; font-weight: 600; color: var(--fg-sub); margin-top: 5px; line-height: 1.6; }
+
+/* ===== 画像から読み取る（翻訳） ===== */
+.ocr-box { margin-top: 14px; transition: border-color 0.15s, background 0.15s; }
+.ocr-box.drag { border: 2px dashed var(--accent); background: rgba(255,255,255,0.18); }
+.ocr-head { font-size: 1.15rem; font-weight: 800; }
+.ocr-sub { font-size: 0.98rem; font-weight: 600; color: var(--fg-sub); margin-top: 4px; line-height: 1.6; }
+.ocr-stat { display: flex; gap: 14px; align-items: center; margin-top: 14px; }
+.ocr-thumb { width: 76px; height: 76px; object-fit: cover; object-position: top left; border-radius: 12px; border: 1px solid var(--card-border); background: #fff; flex: none; }
+.ocr-msg { font-size: 1rem; font-weight: 700; line-height: 1.6; }
+.ocr-msg.err { color: var(--ng); }
+
+/* 1文ずつの訳（原文＋訳を並べる） */
+.pair-box { margin-top: 14px; padding-top: 6px; }
+.pair-row { display: flex; gap: 12px; align-items: flex-start; padding: 13px 0 5px; border-top: 1px solid rgba(255,255,255,0.1); }
+.pair-row .btn.speak.small { flex: none; padding: 10px 14px; }
+.pair-gap { flex: none; width: 52px; }
+.pair-src { font-size: 1.15rem; font-weight: 800; line-height: 1.55; }
+.pair-tr { font-size: 1.08rem; font-weight: 700; color: var(--gold); margin-top: 5px; line-height: 1.6; }
+/* 日本語を文節の切れ目で折り返す（対応ブラウザのみ。ほかはふだんどおり） */
+.pair-src, .pair-tr, .result-box .res { word-break: auto-phrase; }

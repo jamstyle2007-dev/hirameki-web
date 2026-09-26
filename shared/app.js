@@ -202,7 +202,7 @@
         </button>
         <button class="menu-item" onclick="location.hash='translate'">
           <span class="icon">🔁</span>
-          <span><span class="t">翻訳</span><br><span class="d">日本語⇔${esc(C.langLabel)}をその場で変換</span></span>
+          <span><span class="t">翻訳</span><br><span class="d">日本語⇔${esc(C.langLabel)}をその場で変換<br>スクショや写真の文字も訳せます</span></span>
           <span class="chev">›</span>
         </button>
         <button class="menu-item" onclick="location.hash='lessons'">
@@ -519,29 +519,261 @@
 
   /* ===== 翻訳 ===== */
   routes.translate = () => {
-    const dir = store.get("transDir", "toForeign");
+    ocr.seq++; // 前の画面で読み取り中だった画像の結果は捨てる
     const autoSpeak = store.get("transAutoSpeak", true);
+    const os = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "mac" : "win";
+    const touch = matchMedia("(pointer: coarse)").matches;
+    const hint = touch
+      ? "スクショを撮ってから<br>「画像をえらぶ」で選んでください"
+      : os === "mac"
+        ? "⌘＋control＋shift＋4 で範囲をコピーして、<br>この画面で ⌘＋V を押すと読み取ります"
+        : "Windowsキー＋Shift＋S で範囲を切り取って、<br>この画面で Ctrl＋V を押すと読み取ります";
+    const canPaste = !!(navigator.clipboard && navigator.clipboard.read);
     view.innerHTML = topbar("翻訳", "home") + `
       <div class="seg" id="dirseg">
-        <button data-d="toForeign" class="${dir === "toForeign" ? "on" : ""}">日本語 → ${esc(C.langLabel)}</button>
-        <button data-d="toJa" class="${dir === "toJa" ? "on" : ""}">${esc(C.langLabel)} → 日本語</button>
+        <button data-d="toForeign">日本語 → ${esc(C.langLabel)}</button>
+        <button data-d="toJa">${esc(C.langLabel)} → 日本語</button>
       </div>
       <div style="height:14px"></div>
-      <textarea class="input" id="src" placeholder="${dir === "toForeign" ? "例：おはようございます" : C.examplePlaceholder}"></textarea>
+      <textarea class="input" id="src"></textarea>
       <div style="height:12px"></div>
-      <button class="btn" id="go">${dir === "toForeign" ? esc(C.langLabel) + "に変換" : "日本語に変換"}</button>
+      <button class="btn" id="go"></button>
+      <div class="card ocr-box" id="ocrbox">
+        <div class="ocr-head">📷 スクショ・写真から訳す</div>
+        <div class="ocr-sub">画像の文字を読み取って、<br>そのまま翻訳します</div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn ghost small" id="ocrpick">🖼️ 画像をえらぶ</button>
+          ${canPaste ? `<button class="btn ghost small" id="ocrpaste">📋 貼り付け</button>` : ""}
+        </div>
+        <input type="file" id="ocrfile" accept="image/*" hidden>
+        <p class="note">${hint}</p>
+        <div id="ocrstat"></div>
+      </div>
       <div class="card" style="margin-top:14px;padding:2px 18px">
         <div class="opt-row"><span>🔊 自動で読み上げ</span><input type="checkbox" class="toggle" id="autospeak" ${autoSpeak ? "checked" : ""}></div>
       </div>
       <div id="out"></div>
-      <p class="note">インターネット接続を使って翻訳します。長い文は分けて入力すると、より正確になります。</p>`;
+      <p class="note">インターネット接続を使って翻訳します。<br>長い文は分けて入力すると、<br>より正確になります。<br>画像の文字は、この端末の中で読み取ります。<br>画像そのものは外に送りません。</p>`;
 
+    setDir(store.get("transDir", "toForeign"));
     view.querySelectorAll("#dirseg button").forEach((b) => {
-      b.onclick = () => { store.set("transDir", b.dataset.d); routes.translate(); };
+      b.onclick = () => setDir(b.dataset.d); // 入力した文は消さずに向きだけ変える
     });
     $("#autospeak").onchange = (e) => store.set("transAutoSpeak", e.target.checked);
-    $("#go").onclick = doTranslate;
+    $("#go").onclick = () => doTranslate();
+    $("#ocrpick").onclick = () => $("#ocrfile").click();
+    $("#ocrfile").onchange = (e) => {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = ""; // 同じ画像をもう一度選べるように
+      if (f) readImage(f);
+    };
+    if (canPaste) $("#ocrpaste").onclick = pasteImageFromClipboard;
   };
+
+  // 翻訳の向きを切り替える（ボタンの表示・入力欄の例・変換ボタンの文字をそろえる）
+  function setDir(dir) {
+    store.set("transDir", dir);
+    view.querySelectorAll("#dirseg button").forEach((b) => b.classList.toggle("on", b.dataset.d === dir));
+    const src = $("#src"), go = $("#go");
+    if (src) src.placeholder = dir === "toForeign" ? "例：おはようございます" : C.examplePlaceholder;
+    if (go && !go.disabled) go.textContent = goLabel(dir);
+  }
+  function goLabel(dir) { return dir === "toForeign" ? C.langLabel + "に変換" : "日本語に変換"; }
+
+  /* ===== 画像から読み取る（スクショ・写真の文字を翻訳にかける） =====
+     文字の読み取りはブラウザの中で行う（Tesseract.js・無料・キー不要・画像は外に送らない）。
+     外国語と日本語の2つを同時に読むので、英語と日本語がまざったレッスンのメモもそのまま読める。
+     読み取りの部品（約5MB）は、はじめて使うときだけ読み込み、あとはブラウザに残る */
+  const OCR_SRC = "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js";
+  const OCR_LANGS = { en: "eng", "zh-CN": "chi_sim", ko: "kor", fr: "fra", es: "spa" };
+  const ocr = { lib: null, worker: null, seq: 0, onProgress: null, thumb: null };
+
+  function ocrLoadLib() {
+    if (window.Tesseract) return Promise.resolve();
+    if (!ocr.lib) {
+      ocr.lib = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = OCR_SRC;
+        s.onload = resolve;
+        s.onerror = () => { ocr.lib = null; s.remove(); reject(new Error("ocr lib")); };
+        document.head.appendChild(s);
+      });
+    }
+    return ocr.lib;
+  }
+
+  function ocrWorker() {
+    if (!ocr.worker) {
+      ocr.worker = (async () => {
+        await ocrLoadLib();
+        const langs = (OCR_LANGS[C.mmLang] || "eng") + "+jpn";
+        return Tesseract.createWorker(langs, 1, { logger: (m) => { if (ocr.onProgress) ocr.onProgress(m); } });
+      })().catch((e) => { ocr.worker = null; throw e; });
+    }
+    return ocr.worker;
+  }
+
+  // 小さい画像は2倍に広げてから読む（等倍のスクショは細い字を読み違えやすい）。大きすぎる写真は縮める
+  async function imageToCanvas(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const w = img.naturalWidth, h = img.naturalHeight;
+      let k = w < 1000 ? 2 : 1;
+      if (Math.max(w, h) * k > 3200) k = 3200 / Math.max(w, h);
+      const c = document.createElement("canvas");
+      c.width = Math.round(w * k);
+      c.height = Math.round(h * k);
+      const g = c.getContext("2d");
+      g.fillStyle = "#fff"; // 透明な部分は白にする
+      g.fillRect(0, 0, c.width, c.height);
+      g.imageSmoothingQuality = "high";
+      g.drawImage(img, 0, 0, c.width, c.height);
+      return c;
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  const CJK = "　-〿぀-ヿ㐀-鿿豈-﫿＀-￯";
+  const reCjkGap = new RegExp(`([${CJK}])\\s+(?=[${CJK}])`, "g");
+  const reOpenGap = new RegExp(`([(（「])\\s+(?=[${CJK}])`, "g");
+  const reCloseGap = new RegExp(`([${CJK}])\\s+(?=[)）」])`, "g");
+  const reCjkEnd = new RegExp(`[${CJK}]$`), reCjkStart = new RegExp(`^[${CJK}]`);
+  const reLineEnd = /[.!?:;。！？」』）)"”]$/;
+
+  function tidyLine(s) {
+    return String(s)
+      .replace(reCjkGap, "$1") // 日本語・中国語は字の間に空白が入るので詰める
+      .replace(reOpenGap, "$1")
+      .replace(reCloseGap, "$1")
+      .replace(/(^|\s)\|(?=[\s'’])/g, "$1I") // 英語の「I」が縦棒に化けることがある
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  // 読み取った行を文にもどす。画面の幅で折り返されただけの行はつなぎ、吹き出しや段落の区切りは改行のまま残す
+  function ocrToText(data) {
+    const out = [];
+    for (const bl of data.blocks || []) {
+      for (const pa of bl.paragraphs || []) {
+        const lines = (pa.lines || []).map((l) => ({ t: tidyLine(l.text || ""), b: l.bbox })).filter((l) => l.t && l.b);
+        if (!lines.length) continue;
+        const left = Math.min(...lines.map((l) => l.b.x0));
+        const right = Math.max(...lines.map((l) => l.b.x1));
+        let cur = lines[0].t;
+        for (let i = 1; i < lines.length; i++) {
+          const a = lines[i - 1], b = lines[i];
+          const close = b.b.y0 - a.b.y1 <= (a.b.y1 - a.b.y0) * 0.9;          // 行と行の間がつまっている
+          const wide = a.b.x1 - left >= (right - left) * 0.85;               // 前の行が右端まで届いている
+          const cont = /^[a-zà-ÿ0-9]/.test(b.t);                             // 小文字で始まる＝文の続き
+          if (close && !reLineEnd.test(a.t) && (wide || cont)) {
+            cur += (reCjkEnd.test(cur) && reCjkStart.test(b.t) ? "" : " ") + b.t;
+          } else {
+            out.push(cur);
+            cur = b.t;
+          }
+        }
+        out.push(cur);
+      }
+    }
+    return out.join("\n").trim();
+  }
+
+  // 日本語の文かどうか（読み取った文から翻訳の向きを決める）
+  function looksJapanese(text) {
+    const kana = (text.match(/[぀-ヿ]/g) || []).length;
+    const han = (text.match(/[㐀-鿿]/g) || []).length;
+    if (C.mmLang.startsWith("zh")) return kana >= Math.max(2, (kana + han) * 0.1); // 中国語と日本語は、かなの有無で分ける
+    const foreign = (text.match(/[A-Za-zÀ-ÿ가-힯]/g) || []).length;
+    return kana + han > foreign;
+  }
+
+  function ocrStatus(msg, { error = false } = {}) {
+    const stat = $("#ocrstat");
+    if (!stat) return;
+    stat.innerHTML = `<div class="ocr-stat">
+        ${ocr.thumb ? `<img class="ocr-thumb" src="${ocr.thumb}" alt="">` : ""}
+        <div class="ocr-msg${error ? " err" : ""}">${msg}</div>
+      </div>`;
+  }
+
+  async function readImage(file) {
+    if (!$("#ocrbox")) return;
+    if (!file || !/^image\//.test(file.type || "")) { toast("画像ファイルを選んでください"); return; }
+    const mySeq = ++ocr.seq;
+    if (ocr.thumb) URL.revokeObjectURL(ocr.thumb);
+    ocr.thumb = URL.createObjectURL(file);
+    ocrStatus("画像をひらいています…");
+    let canvas;
+    try {
+      canvas = await imageToCanvas(file);
+    } catch {
+      if (ocr.seq === mySeq) ocrStatus("この画像はひらけませんでした。<br>PNGかJPEGの画像でお試しください", { error: true });
+      return;
+    }
+    ocr.onProgress = (m) => {
+      if (ocr.seq !== mySeq) return;
+      if (m.status === "recognizing text") ocrStatus(`文字を読み取っています… ${Math.round((m.progress || 0) * 100)}%`);
+      else ocrStatus("読み取りの準備をしています…<br>はじめてのときだけ、少し時間がかかります");
+    };
+    try {
+      ocrStatus("読み取りの準備をしています…");
+      const worker = await ocrWorker();
+      const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
+      if (ocr.seq !== mySeq || !$("#src")) return;
+      const text = ocrToText(data);
+      if (!text) { ocrStatus("文字が見つかりませんでした。<br>文字の部分を大きく切り取ってお試しください", { error: true }); return; }
+      const src = $("#src");
+      src.value = text;
+      src.style.height = Math.min(320, Math.max(110, src.scrollHeight + 4)) + "px"; // 読み取った文が見えるように広げる
+      setDir(looksJapanese(text) ? "toForeign" : "toJa");
+      ocrStatus("読み取りました。<br>まちがいは入力欄で直して、<br>もう一度「変換」を押せます");
+      await doTranslate({ fromImage: true });
+    } catch {
+      if (ocr.seq === mySeq) ocrStatus("読み取れませんでした。<br>インターネットにつないで、<br>もう一度お試しください", { error: true });
+    }
+  }
+
+  // 「貼り付け」ボタン（キーボードを使わずにコピーした画像を読む）
+  async function pasteImageFromClipboard() {
+    try {
+      for (const it of await navigator.clipboard.read()) {
+        const type = it.types.find((t) => t.startsWith("image/"));
+        if (type) { readImage(new File([await it.getType(type)], "clipboard", { type })); return; }
+      }
+      toast("コピーした画像がありません");
+    } catch {
+      toast("貼り付けできませんでした");
+    }
+  }
+
+  // 翻訳画面にいるときは、Ctrl＋V／⌘＋V とドラッグ＆ドロップで画像を受け取る（文字の貼り付けはふつうに入力欄へ）
+  document.addEventListener("paste", (e) => {
+    if (!$("#ocrbox")) return;
+    const item = [...((e.clipboardData && e.clipboardData.items) || [])].find((x) => x.kind === "file" && x.type.startsWith("image/"));
+    if (!item) return;
+    e.preventDefault();
+    readImage(item.getAsFile());
+  });
+  const hasFiles = (e) => [...((e.dataTransfer && e.dataTransfer.types) || [])].includes("Files");
+  document.addEventListener("dragover", (e) => {
+    const box = $("#ocrbox");
+    if (!box || !hasFiles(e)) return;
+    e.preventDefault();
+    box.classList.add("drag");
+  });
+  document.addEventListener("dragleave", (e) => {
+    if (!e.relatedTarget && $("#ocrbox")) $("#ocrbox").classList.remove("drag");
+  });
+  document.addEventListener("drop", (e) => {
+    const box = $("#ocrbox");
+    if (!box || !hasFiles(e)) return;
+    e.preventDefault();
+    box.classList.remove("drag");
+    const f = [...e.dataTransfer.files].find((x) => x.type.startsWith("image/"));
+    if (f) readImage(f); else toast("画像ファイルを選んでください");
+  });
 
   async function translateText(text, dir) {
     const sl = dir === "toForeign" ? "ja" : C.mmLang;
@@ -680,12 +912,100 @@
     });
   }
 
-  async function doTranslate() {
+  // 行を1文ずつに分ける（英語などは「. 」のあとが大文字なら文の切れ目。日本語・中国語は「。！？」のあと）
+  function splitSentences(text) {
+    const units = [];
+    for (const line of text.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      // 区切りの目印を入れてから分ける（古いSafariは正規表現の後読みが使えないため）
+      t.replace(/([.!?])\s+(?=["“'(\[]?[A-Z0-9¿¡À-Ý])|([。！？])(?=\S)/g, (m, a, b) => (a || b) + "\u0000")
+        .split("\u0000").forEach((s) => { if (s.trim()) units.push(s.trim()); });
+    }
+    return units;
+  }
+
+  // 1文ずつ訳して「原文と訳」の組を返す（Google翻訳の公開エンドポイントに、文をまとめて送る）。
+  // 元の言語は向きで決めて渡す（自動判定だと、英語と日本語がまざった行を日本語とみなして訳さないため）。
+  // 中国語は日本語と同じ漢字を使うので、元の言語は1文ずつ自動で見分けてもらう
+  async function translatePairs(text, dir) {
+    const tl = dir === "toForeign" ? C.mmLang : "ja";
+    const sl = C.mmLang.startsWith("zh") ? "auto" : dir === "toForeign" ? "ja" : C.mmLang;
+    const units = splitSentences(text);
+    const pairs = [];
+    for (let i = 0; i < units.length; ) {
+      const batch = [];
+      let size = 0;
+      while (i < units.length && batch.length < 60 && (!batch.length || size + units[i].length < 4000)) {
+        size += units[i].length;
+        batch.push(units[i++]);
+      }
+      const res = await fetch(`https://translate.googleapis.com/translate_a/t?client=gtx&sl=${sl}&tl=${tl}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: batch.map((q) => "q=" + encodeURIComponent(q)).join("&"),
+      });
+      const json = await res.json();
+      if (!Array.isArray(json) || json.length !== batch.length) throw new Error("pairs");
+      json.forEach((x, k) => pairs.push({ src: batch[k], tr: String(Array.isArray(x) ? x[0] : x || "").trim() }));
+    }
+    return pairs;
+  }
+
+  // 2行以上の文は、1文ずつ「原文＋訳」を並べる（スクショの文章を読んで意味をつかむため）
+  function showPairs(text, pairs, dir) {
+    const foreignOf = (p) => (dir === "toForeign" ? p.tr : p.src);
+    const canSpeak = (s) => !!s && !looksJapanese(s);
+    // 英語と日本語がまざった行は、日本語の部分を外してから読み上げる（中国語は漢字を外せないのでそのまま）
+    const speakText = (s) => (C.mmLang.startsWith("zh") ? s : s
+      .replace(/[\u3040-\u30ff\u3400-\u9fff\u3000-\u303f\uff01-\uff60]+/g, " ")
+      .replace(/[(（]\s*[)）]/g, "").replace(/\s{2,}/g, " ").trim());
+    const joined = pairs.map((p) => p.tr).join("\n");
+    $("#out").innerHTML = `
+      <div class="card pair-box">
+        <div class="ex-head">1文ずつの訳</div>
+        ${pairs.map((p, i) => `<div class="pair-row">
+            ${canSpeak(foreignOf(p)) ? `<button class="btn speak small pair-play" data-i="${i}" aria-label="読み上げ">🔊</button>` : `<span class="pair-gap"></span>`}
+            <div><div class="pair-src">${esc(p.src)}</div>${p.tr && p.tr !== p.src ? `<div class="pair-tr">${esc(p.tr)}</div>` : ""}</div>
+          </div>`).join("")}
+        <div class="row" style="margin-top:16px">
+          <button class="btn small" id="rcopy">📋 訳をコピー</button>
+          <button class="btn small" id="rsave">📒 保存</button>
+        </div>
+      </div>`;
+    $("#out").querySelectorAll(".pair-play").forEach((b) => {
+      b.onclick = () => speech.speak(speakText(foreignOf(pairs[+b.dataset.i])), C.lang, C.rateNormal);
+    });
+    $("#rcopy").onclick = async () => {
+      try { await navigator.clipboard.writeText(joined); toast("訳をコピーしました"); }
+      catch { toast("コピーできませんでした"); }
+    };
+    $("#rsave").onclick = () => {
+      const phrases = store.get("phrases", []);
+      phrases.unshift(dir === "toForeign" ? { ja: text, f: joined, at: new Date().toISOString() } : { ja: joined, f: text, at: new Date().toISOString() });
+      store.set("phrases", phrases);
+      toast("保存しました");
+    };
+  }
+
+  async function doTranslate({ fromImage = false } = {}) {
     const text = $("#src").value.trim();
     if (!text) return;
     const dir = store.get("transDir", "toForeign");
     $("#go").disabled = true;
     $("#go").textContent = "翻訳中…";
+    // 何行もある文・長い文章は、1文ずつ「原文＋訳」を並べる。短い言い回しは今までどおり1つの訳と例文を出す
+    if (splitSentences(text).length >= 2 && (text.includes("\n") || text.length > 80)) {
+      let pairs = null;
+      try { pairs = await translatePairs(text, dir); } catch { /* ふつうの翻訳へ */ }
+      if (pairs && pairs.length && $("#out")) {
+        showPairs(text, pairs, dir);
+        $("#go").disabled = false;
+        $("#go").textContent = goLabel(store.get("transDir", "toForeign"));
+        if (fromImage) $("#out").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+    }
     try {
       const out = await translateText(text, dir);
       if (!out) throw new Error("empty");
@@ -711,10 +1031,12 @@
       if (store.get("transAutoSpeak", true)) speech.speak(foreign, C.lang, C.rateNormal);
       showExamples(foreign);
     } catch {
-      $("#out").innerHTML = `<p class="note" style="color:var(--ng)">翻訳できませんでした。少し時間をおいて、もう一度お試しください。</p>`;
+      if ($("#out")) $("#out").innerHTML = `<p class="note" style="color:var(--ng)">翻訳できませんでした。少し時間をおいて、もう一度お試しください。</p>`;
     }
+    if (!$("#go")) return; // 翻訳中に画面を移った
     $("#go").disabled = false;
-    $("#go").textContent = dir === "toForeign" ? C.langLabel + "に変換" : "日本語に変換";
+    $("#go").textContent = goLabel(store.get("transDir", "toForeign"));
+    if (fromImage && $("#out")) $("#out").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   /* ===== 保存フレーズ ===== */
