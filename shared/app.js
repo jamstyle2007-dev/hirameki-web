@@ -9,7 +9,12 @@
       try { const v = localStorage.getItem(C.id + "." + key); return v ? JSON.parse(v) : fallback; }
       catch { return fallback; }
     },
-    set(key, val) { localStorage.setItem(C.id + "." + key, JSON.stringify(val)); },
+    // 容量オーバー（全言語で同じ保存領域を共有）やプライベートモードでも画面を止めない
+    set(key, val) {
+      try { localStorage.setItem(C.id + "." + key, JSON.stringify(val)); return true; }
+      catch { return false; }
+    },
+    remove(key) { try { localStorage.removeItem(C.id + "." + key); } catch {} },
   };
 
   let DATA = null;
@@ -626,6 +631,7 @@
 
   /* ===== 翻訳 ===== */
   routes.translate = () => {
+    doTranslate.n++;
     const dir = store.get("transDir", "toForeign");
     const autoSpeak = store.get("transAutoSpeak", true);
     view.innerHTML = topbar("翻訳", "home") + `
@@ -680,6 +686,8 @@
     // 第二候補: MyMemory
     const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${tl}`);
     const json = await res.json();
+    // 上限超過などのエラー文もHTTP 200で返ってくるので、訳として表示しない
+    if (json.responseStatus != 200) throw new Error(json.responseDetails || "mymemory");
     return (json.responseData && json.responseData.translatedText || "").trim();
   }
 
@@ -689,6 +697,8 @@
     const t = (text || "").trim();
     if (!t || t.length > 26) return false;
     if (/[.!?。！？]\s*\S/.test(t)) return false;             // 文が2つ以上あれば単語ではない
+    // 中国語・韓国語は空白で区切られないことがあるので、文字数でも判定する
+    if ((C.mmLang === "zh" || C.mmLang === "ko") && t.replace(/[。！？.!?\s]/g, "").length > 8) return false;
     return t.split(/\s+/).filter(Boolean).length <= 3;
   }
 
@@ -699,8 +709,11 @@
     const esc2 = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // 語尾が変わった形（promise→promised, eat→eating, cat→cats）も同じ語とみなす。
     // ただし別の語（cat→category）には当たらないよう、よくある語尾だけを許す
-    const latin = /^[a-zà-ÿ' -]+$/i.test(n)
-      ? new RegExp(`(^|[^a-zà-ÿ'])${esc2}(s|es|d|ed|ing|r|rs)?([^a-zà-ÿ']|$)`, "i") : null;
+    // 短い語（he→her, an→and）は別の語になってしまうので、語尾変化は4文字以上の語だけ認める。
+    // アポストロフィは語の切れ目として扱う（L'eau の eau、I'm の I に当たるように）
+    const sfx = n.replace(/[^a-zà-ÿœæ]/gi, "").length >= 4 ? "(s|es|d|ed|ing|r|rs)?" : "(s|es)?";
+    const latin = /^[a-zà-ÿœæ'’ -]+$/i.test(n)
+      ? new RegExp(`(^|[^a-zà-ÿœæ])${esc2}${sfx}([^a-zà-ÿœæ]|$)`, "i") : null;
     // 漢字1文字は他の語の一部に紛れ込みやすい（「水」が「水果」に当たる等）ので拾い読みはしない
     const canScan = !!latin || n.length >= 2;
     return { n, canScan, test: (s) => (latin ? latin.test(String(s)) : String(s).toLowerCase().includes(n)) };
@@ -760,6 +773,15 @@
     } catch { return []; }
   }
 
+  // 例文キャッシュは古いものから捨てて200語までにする（保存領域を使い切らないように）
+  function cacheExamples(key, list) {
+    const keys = store.get("exKeys", []).filter((k) => k !== key);
+    keys.push(key);
+    while (keys.length > 200) store.remove(keys.shift());
+    store.set("exKeys", keys);
+    store.set(key, list);
+  }
+
   // 翻訳結果の下に例文カードを出す（収録データ→足りなければAIの順）
   async function showExamples(foreign) {
     const wrap = $("#exwrap");
@@ -772,7 +794,8 @@
         wrap.innerHTML = `<p class="note">例文をさがしています…</p>`;
         list = list.concat(await aiExamples(foreign, 3 - list.length)).slice(0, 3);
       }
-      if (list.length) store.set(key, list);
+      // AIで3件そろったとき（またはAIを使わない設定のとき）だけ保存。失敗・途中の結果は次回やり直す
+      if (list.length >= 3 || (!C.aiKey && list.length)) cacheExamples(key, list);
     }
     if (!list.length) { wrap.innerHTML = ""; return; }
     wrap.innerHTML = `<div class="card ex-box">
@@ -787,14 +810,18 @@
     });
   }
 
+  doTranslate.n = 0;
   async function doTranslate() {
     const text = $("#src").value.trim();
     if (!text) return;
     const dir = store.get("transDir", "toForeign");
+    const tok = ++doTranslate.n; // 翻訳中に画面を離れたり向きを切り替えたら、古い結果は捨てる
+    const stale = () => tok !== doTranslate.n || !$("#out");
     $("#go").disabled = true;
     $("#go").textContent = "翻訳中…";
     try {
       const out = await translateText(text, dir);
+      if (stale()) return;
       if (!out) throw new Error("empty");
       const foreign = dir === "toForeign" ? out : text;
       const ja = dir === "toForeign" ? text : out;
@@ -812,12 +839,12 @@
       $("#rsave").onclick = () => {
         const phrases = store.get("phrases", []);
         phrases.unshift({ ja, f: foreign, at: new Date().toISOString() });
-        store.set("phrases", phrases);
-        toast("保存しました");
+        toast(store.set("phrases", phrases) ? "保存しました" : "保存できませんでした（端末の保存容量がいっぱいです）");
       };
       if (store.get("transAutoSpeak", true)) speech.speak(foreign, C.lang, C.rateNormal);
       showExamples(foreign);
     } catch {
+      if (stale()) return;
       $("#out").innerHTML = `<p class="note" style="color:var(--ng)">翻訳できませんでした。少し時間をおいて、もう一度お試しください。</p>`;
     }
     $("#go").disabled = false;
