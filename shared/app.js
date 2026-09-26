@@ -1091,4 +1091,11 @@ ${text}`;
     .then((r) => r.json())
     .then((d) => { DATA = d; render(); })
     .catch(() => { view.innerHTML = `<div class="empty">データを読み込めませんでした。<br>再読み込みしてください。</div>`; });
+
+  // ホーム画面に追加したときのオフライン対応（sw.js はサイト直下に置き、全言語で共有する）
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register(new URL("../sw.js", location.href), { scope: new URL("../", location.href).pathname }).catch(() => {});
+    });
+  }
 })();
