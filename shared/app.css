@@ -277,3 +277,34 @@ textarea.input::placeholder { color: rgba(255,255,255,0.4); }
 .ex-row .btn.speak.small { flex: none; padding: 10px 14px; }
 .ex-t { font-size: 1.18rem; font-weight: 800; line-height: 1.5; }
 .ex-ja { font-size: 0.98rem; font-weight: 600; color: var(--fg-sub); margin-top: 5px; line-height: 1.6; }
+
+/* ===== 単語一覧・教材ページ（tools/gen_seo_pages.py で生成） ===== */
+.seo a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.seo .crumbs { font-size: 0.85rem; font-weight: 600; color: var(--fg-sub); margin-bottom: 14px; line-height: 1.7; }
+.seo .seo-h1 { font-size: 1.5rem; font-weight: 800; line-height: 1.45; }
+.seo .seo-h2 { font-size: 1.15rem; font-weight: 800; margin: 24px 4px 12px; }
+.seo .btn { white-space: normal; }
+.seo .btn.cta { display: block; text-align: center; color: #fff; margin: 16px 0 20px; }
+.seo .wlist { list-style: none; display: grid; gap: 12px; }
+.seo .card.wl { padding: 16px 18px; }
+.seo .wl-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seo .wl-w { font-size: 1.35rem; font-weight: 800; }
+.seo .wl-p { font-size: 0.9rem; color: var(--fg-sub); font-weight: 600; }
+.seo .wl-m { font-size: 1.05rem; font-weight: 700; margin: 6px 0 0 44px; }
+.seo .wl-ex { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; font-weight: 600; line-height: 1.6; }
+.seo .wl-ex > div { min-width: 0; overflow-wrap: anywhere; }
+.seo .wl-ja { color: var(--fg-sub); font-size: 0.95rem; }
+.seo .say {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  background: var(--card-bg); border: 1px solid var(--card-border); color: var(--fg); font-size: 1rem;
+}
+.seo .toc { margin-top: 14px; }
+.seo .toc h2 { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; }
+.seo .toc h2 .d { display: block; font-size: 0.88rem; color: var(--fg-sub); font-weight: 600; margin-top: 2px; }
+.seo .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.seo .chip { padding: 6px 12px; border-radius: 999px; background: var(--card-bg); border: 1px solid var(--card-border); font-size: 0.9rem; }
+.seo .pager { display: flex; gap: 10px; margin-top: 18px; }
+.seo .pager .btn { flex: 1; text-align: center; color: #fff; }
+.seo .list-item { color: var(--fg); }
+.seo-links { max-width: 640px; margin: -80px auto 100px; padding: 0 18px; text-align: center; font-size: 0.88rem; font-weight: 700; line-height: 2; }
+.seo-links a { color: var(--accent); text-decoration: none; margin: 0 8px; }
