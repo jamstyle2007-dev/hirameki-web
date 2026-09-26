@@ -177,6 +177,57 @@
   }
 
   /* ===== ホーム ===== */
+  /* ===== 今日の目標・連続学習日数 ===== */
+  // 日付は端末のローカル時刻で数える（日本の利用者が夜中0時で切り替わるように）
+  function today(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function goal() { return store.get("dailyGoal", 20); }
+  function todayCount() {
+    const d = store.get("daily", null);
+    return d && d.date === today() ? d.count : 0;
+  }
+  // 連続日数：最後に学習した日が今日か昨日なら継続中、それより前なら途切れている
+  function streakDays() {
+    const s = store.get("streak", null);
+    return s && (s.last === today() || s.last === today(-1)) ? s.days : 0;
+  }
+  function countStudy() {
+    const t = today();
+    const n = todayCount() + 1;
+    store.set("daily", { date: t, count: n });
+    const s = store.get("streak", null);
+    if (!s || s.last !== t) {
+      store.set("streak", { last: t, days: s && s.last === today(-1) ? s.days + 1 : 1 });
+    }
+    if (n === goal()) toast(`🎉 今日の目標 ${goal()}語 達成！`);
+  }
+  function goalHtml() {
+    const n = todayCount(), g = goal(), days = streakDays();
+    const pct = Math.min(100, Math.round((n / g) * 100));
+    return `<div class="goal">
+      <div class="goal-row"><span>🔥 ${days ? days + "日連続" : "今日から連続記録スタート"}</span><span>今日 ${n} / ${g}語${n >= g ? " ✅" : ""}</span></div>
+      <div class="goal-bar"><div style="width:${pct}%"></div></div>
+    </div>`;
+  }
+
+  /* ===== 苦手な単語 ===== */
+  // 「まだ」や確認テストの不正解で登録し、「覚えた」や正解で外す。キーは learned と同じ「レベル_単語」
+  function cardKey(card) { return (card._lv || study.id) + "_" + card.w; }
+  function setWeak(card, on) {
+    const key = cardKey(card);
+    if (!LEVELS.some((l) => key.startsWith(l.key + "_"))) return; // 組み込み語彙だけが対象
+    const weak = new Set(store.get("weak", []));
+    if (on) weak.add(key); else weak.delete(key);
+    store.set("weak", [...weak]);
+  }
+  function weakCards() {
+    const weak = new Set(store.get("weak", []));
+    return LEVELS.flatMap((l) => DATA.vocab[l.key].filter((c) => weak.has(l.key + "_" + c.w)).map((c) => ({ ...c, _lv: l.key })));
+  }
+
   // 最後に学習していた場所（単語カード/教材/デッキ）。ホームの「続きから」に使う
   function saveLast(icon, title, sub) {
     store.set("last", { hash: location.hash.slice(1), icon, title, sub });
@@ -190,6 +241,7 @@
         <h1>${esc(C.name)}</h1>
         <p>${C.tagline}</p>
       </div>
+      ${goalHtml()}
       <div class="menu">
         ${last && last.hash ? `<button class="menu-item resume" id="resume">
           <span class="icon">${esc(last.icon || "▶︎")}</span>
@@ -243,6 +295,7 @@
   /* ===== 単語カード: レベル選択 ===== */
   routes.vocab = () => {
     const learned = new Set(store.get("learned", []));
+    const weakN = store.get("weak", []).length;
     view.innerHTML = topbar("単語カード", "home") + `<div class="list">` +
       LEVELS.map((lv) => {
         const cards = DATA.vocab[lv.key];
@@ -253,7 +306,25 @@
           <span class="d">${esc(C.levelSubtitles[lv.key])}｜${cards.length}語（覚えた ${done}）</span></span>
           <span class="chev">›</span>
         </button>`;
-      }).join("") + `</div>`;
+      }).join("") + (weakN ? `<button class="list-item" onclick="location.hash='weak'">
+          <span class="icon" style="font-size:1.8rem">😣</span>
+          <span><span class="t">苦手な単語</span><br>
+          <span class="d">「まだ」やテストで間違えた単語だけを復習｜${weakN}語</span></span>
+          <span class="chev">›</span>
+        </button>` : "") + `</div>
+      <div class="card" style="margin-top:16px;padding:6px 18px">
+        <div class="opt-row"><span>1日の目標</span>
+          <select id="goal">${[10, 20, 30, 50, 100].map((n) => `<option value="${n}" ${n === goal() ? "selected" : ""}>${n}語</option>`).join("")}</select>
+        </div>
+      </div>`;
+    $("#goal").onchange = (e) => store.set("dailyGoal", +e.target.value);
+  };
+
+  routes.weak = () => {
+    const cards = weakCards();
+    if (!cards.length) { toast("苦手な単語はありません 🎉"); location.hash = "vocab"; return; }
+    study.id = null; // 毎回いまの苦手リストで作り直す
+    startStudy("weak", cards, "vocab", "苦手な単語");
   };
 
   /* ===== 単語カード: 学習（組み込み語彙・レッスン復習デッキ共通エンジン） ===== */
@@ -294,18 +365,19 @@
     let tries = 0;
     while (skipLearned && tries < cards.length) {
       const c = cards[study.order[study.pos]];
-      if (!learned.has(study.id + "_" + c.w)) break;
+      if (!learned.has(cardKey(c))) break;
       study.pos = (study.pos + 1) % cards.length;
       tries++;
     }
     const card = cards[study.order[study.pos]];
-    const done = cards.filter((c) => learned.has(study.id + "_" + c.w)).length;
-    store.set("studyPos." + study.id, { order: study.order, pos: study.pos });
+    const done = cards.filter((c) => learned.has(cardKey(c))).length;
+    if (study.id !== "weak") store.set("studyPos." + study.id, { order: study.order, pos: study.pos });
     saveLast("🃏", study.title, `${study.pos + 1} / ${cards.length}枚目｜覚えた ${done}語`);
 
     view.innerHTML = topbar(study.title, study.back) + `
       <div class="progress-line">
         <span>${study.pos + 1} / ${cards.length}</span>
+        <span>今日 ${todayCount()} / ${goal()}</span>
         <span class="learned">覚えた ${done}語</span>
       </div>
       <div class="card vocab-card" id="vcard">
@@ -345,10 +417,12 @@
   }
 
   function mark(card, ok) {
-    const id = study.id + "_" + card.w;
+    const id = cardKey(card);
     const learned = new Set(store.get("learned", []));
     if (ok) learned.add(id); else learned.delete(id);
     store.set("learned", [...learned]);
+    setWeak(card, !ok);
+    countStudy();
     study.recent.push(card);
     if (study.recent.length > 12) study.recent.shift();
     study.sinceQuiz++;
@@ -404,8 +478,8 @@
         const pick = q.opts[+b.dataset.i];
         const okBtn = [...view.querySelectorAll(".quiz-opts .btn")].find((x) => x.textContent === q.card.m);
         okBtn.classList.add("correct");
-        if (pick === q.card.m) quiz.score++;
-        else b.classList.add("wrong");
+        if (pick === q.card.m) { quiz.score++; setWeak(q.card, false); }
+        else { b.classList.add("wrong"); setWeak(q.card, true); }
         view.querySelectorAll(".quiz-opts .btn").forEach((x) => (x.onclick = null));
         setTimeout(() => { quiz.pos++; drawQuiz(); }, 900);
       };

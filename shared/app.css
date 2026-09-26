@@ -126,6 +126,10 @@ body.theme-spain { --accent: #fb923c; }
 .menu-item .t { font-size: 1.25rem; font-weight: 800; }
 .menu-item .d { font-size: 0.95rem; font-weight: 600; color: var(--fg-sub); margin-top: 3px; line-height: 1.5; }
 .menu-item .chev { margin-left: auto; color: var(--fg-sub); font-size: 1.3rem; }
+.goal { margin: 4px 0 14px; padding: 12px 16px; border-radius: 16px; background: var(--card-bg); border: 1px solid var(--card-border); }
+.goal-row { display: flex; justify-content: space-between; font-weight: 800; font-size: 1rem; }
+.goal-bar { height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.12); margin-top: 8px; overflow: hidden; }
+.goal-bar > div { height: 100%; background: var(--ok); border-radius: 99px; transition: width 0.3s; }
 .menu-item.resume { border-color: var(--accent); background: rgba(77, 163, 255, 0.16); }
 
 .btn {
