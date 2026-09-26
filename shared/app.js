@@ -9,7 +9,12 @@
       try { const v = localStorage.getItem(C.id + "." + key); return v ? JSON.parse(v) : fallback; }
       catch { return fallback; }
     },
-    set(key, val) { localStorage.setItem(C.id + "." + key, JSON.stringify(val)); },
+    // 容量オーバー（全言語で同じ保存領域を共有）やプライベートモードでも画面を止めない
+    set(key, val) {
+      try { localStorage.setItem(C.id + "." + key, JSON.stringify(val)); return true; }
+      catch { return false; }
+    },
+    remove(key) { try { localStorage.removeItem(C.id + "." + key); } catch {} },
   };
 
   let DATA = null;
@@ -161,10 +166,20 @@
   function nav(hash) { location.hash = hash; }
   window.addEventListener("hashchange", render);
 
+  // 単語データ（最大130KB）が要る画面。ホームや翻訳などはデータを待たずにすぐ表示する
+  const NEEDS_DATA = new Set(["vocab", "study", "weak", "books", "play"]);
+  let dataFailed = false;
+
   function render() {
     speech.stop();
     player.reset();
     const [name, ...args] = (location.hash.slice(1) || "home").split("/");
+    if (!DATA && NEEDS_DATA.has(name)) {
+      view.innerHTML = topbar("", "home") + (dataFailed
+        ? `<div class="empty">データを読み込めませんでした。<br>再読み込みしてください。</div>`
+        : `<div class="empty">読み込み中…</div>`);
+      return;
+    }
     (routes[name] || routes.home)(...args.map(decodeURIComponent));
     window.scrollTo(0, 0);
   }
@@ -177,14 +192,77 @@
   }
 
   /* ===== ホーム ===== */
+  /* ===== 今日の目標・連続学習日数 ===== */
+  // 日付は端末のローカル時刻で数える（日本の利用者が夜中0時で切り替わるように）
+  function today(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function goal() { return store.get("dailyGoal", 20); }
+  function todayCount() {
+    const d = store.get("daily", null);
+    return d && d.date === today() ? d.count : 0;
+  }
+  // 連続日数：最後に学習した日が今日か昨日なら継続中、それより前なら途切れている
+  function streakDays() {
+    const s = store.get("streak", null);
+    return s && (s.last === today() || s.last === today(-1)) ? s.days : 0;
+  }
+  function countStudy() {
+    const t = today();
+    const n = todayCount() + 1;
+    store.set("daily", { date: t, count: n });
+    const s = store.get("streak", null);
+    if (!s || s.last !== t) {
+      store.set("streak", { last: t, days: s && s.last === today(-1) ? s.days + 1 : 1 });
+    }
+    if (n === goal()) toast(`🎉 今日の目標 ${goal()}語 達成！`);
+  }
+  function goalHtml() {
+    const n = todayCount(), g = goal(), days = streakDays();
+    const pct = Math.min(100, Math.round((n / g) * 100));
+    return `<div class="goal">
+      <div class="goal-row"><span>🔥 ${days ? days + "日連続" : "今日から連続記録スタート"}</span><span>今日 ${n} / ${g}語${n >= g ? " ✅" : ""}</span></div>
+      <div class="goal-bar"><div style="width:${pct}%"></div></div>
+    </div>`;
+  }
+
+  /* ===== 苦手な単語 ===== */
+  // 「まだ」や確認テストの不正解で登録し、「覚えた」や正解で外す。キーは learned と同じ「レベル_単語」
+  function cardKey(card) { return (card._lv || study.id) + "_" + card.w; }
+  function setWeak(card, on) {
+    const key = cardKey(card);
+    if (!LEVELS.some((l) => key.startsWith(l.key + "_"))) return; // 組み込み語彙だけが対象
+    const weak = new Set(store.get("weak", []));
+    if (on) weak.add(key); else weak.delete(key);
+    store.set("weak", [...weak]);
+  }
+  function weakCards() {
+    const weak = new Set(store.get("weak", []));
+    return LEVELS.flatMap((l) => DATA.vocab[l.key].filter((c) => weak.has(l.key + "_" + c.w)).map((c) => ({ ...c, _lv: l.key })));
+  }
+
+  // 最後に学習していた場所（単語カード/教材/デッキ）。ホームの「続きから」に使う
+  function saveLast(icon, title, sub) {
+    store.set("last", { hash: location.hash.slice(1), icon, title, sub });
+  }
+
   routes.home = () => {
+    const last = store.get("last", null);
     view.innerHTML = `
       <div class="hero">
         <div class="app-icon">${C.icon}</div>
         <h1>${esc(C.name)}</h1>
         <p>${C.tagline}</p>
       </div>
+      ${goalHtml()}
       <div class="menu">
+        ${last && last.hash ? `<button class="menu-item resume" id="resume">
+          <span class="icon">${esc(last.icon || "▶︎")}</span>
+          <span><span class="d">続きから</span><br><span class="t">${esc(last.title)}</span><br><span class="d">${esc(last.sub || "")}</span></span>
+          <span class="chev">›</span>
+        </button>` : ""}
         <button class="menu-item" onclick="location.hash='vocab'">
           <span class="icon">🃏</span>
           <span><span class="t">単語カード</span><br><span class="d">${esc(C.vocabDesc)}</span></span>
@@ -226,11 +304,13 @@
         <a href="${C.appStoreUrl}" target="_blank" rel="noopener">App Storeで「${esc(C.name)}」を見る</a><br><br>
         <a href="../privacy/">プライバシーポリシー</a>
       </div>`;
+    if (last && last.hash) $("#resume").onclick = () => (location.hash = last.hash);
   };
 
   /* ===== 単語カード: レベル選択 ===== */
   routes.vocab = () => {
     const learned = new Set(store.get("learned", []));
+    const weakN = store.get("weak", []).length;
     view.innerHTML = topbar("単語カード", "home") + `<div class="list">` +
       LEVELS.map((lv) => {
         const cards = DATA.vocab[lv.key];
@@ -241,7 +321,25 @@
           <span class="d">${esc(C.levelSubtitles[lv.key])}｜${cards.length}語（覚えた ${done}）</span></span>
           <span class="chev">›</span>
         </button>`;
-      }).join("") + `</div>`;
+      }).join("") + (weakN ? `<button class="list-item" onclick="location.hash='weak'">
+          <span class="icon" style="font-size:1.8rem">😣</span>
+          <span><span class="t">苦手な単語</span><br>
+          <span class="d">「まだ」やテストで間違えた単語だけを復習｜${weakN}語</span></span>
+          <span class="chev">›</span>
+        </button>` : "") + `</div>
+      <div class="card" style="margin-top:16px;padding:6px 18px">
+        <div class="opt-row"><span>1日の目標</span>
+          <select id="goal">${[10, 20, 30, 50, 100].map((n) => `<option value="${n}" ${n === goal() ? "selected" : ""}>${n}語</option>`).join("")}</select>
+        </div>
+      </div>`;
+    $("#goal").onchange = (e) => store.set("dailyGoal", +e.target.value);
+  };
+
+  routes.weak = () => {
+    const cards = weakCards();
+    if (!cards.length) { toast("苦手な単語はありません 🎉"); location.hash = "vocab"; return; }
+    study.id = null; // 毎回いまの苦手リストで作り直す
+    startStudy("weak", cards, "vocab", "苦手な単語");
   };
 
   /* ===== 単語カード: 学習（組み込み語彙・レッスン復習デッキ共通エンジン） ===== */
@@ -254,8 +352,15 @@
       study.cards = cards;
       study.back = back;
       study.title = title;
-      study.order = shuffle(cards.map((_, i) => i));
-      study.pos = 0;
+      // 前回のシャッフル順と位置を復元（データの語数が変わっていたら作り直す）
+      const saved = store.get("studyPos." + id, null);
+      if (saved && Array.isArray(saved.order) && saved.order.length === cards.length) {
+        study.order = saved.order;
+        study.pos = Math.min(saved.pos | 0, cards.length - 1);
+      } else {
+        study.order = shuffle(cards.map((_, i) => i));
+        study.pos = 0;
+      }
       study.sinceQuiz = 0;
       study.recent = [];
     }
@@ -275,16 +380,19 @@
     let tries = 0;
     while (skipLearned && tries < cards.length) {
       const c = cards[study.order[study.pos]];
-      if (!learned.has(study.id + "_" + c.w)) break;
+      if (!learned.has(cardKey(c))) break;
       study.pos = (study.pos + 1) % cards.length;
       tries++;
     }
     const card = cards[study.order[study.pos]];
-    const done = cards.filter((c) => learned.has(study.id + "_" + c.w)).length;
+    const done = cards.filter((c) => learned.has(cardKey(c))).length;
+    if (study.id !== "weak") store.set("studyPos." + study.id, { order: study.order, pos: study.pos });
+    saveLast("🃏", study.title, `${study.pos + 1} / ${cards.length}枚目｜覚えた ${done}語`);
 
     view.innerHTML = topbar(study.title, study.back) + `
       <div class="progress-line">
         <span>${study.pos + 1} / ${cards.length}</span>
+        <span>今日 ${todayCount()} / ${goal()}</span>
         <span class="learned">覚えた ${done}語</span>
       </div>
       <div class="card vocab-card" id="vcard">
@@ -324,10 +432,12 @@
   }
 
   function mark(card, ok) {
-    const id = study.id + "_" + card.w;
+    const id = cardKey(card);
     const learned = new Set(store.get("learned", []));
     if (ok) learned.add(id); else learned.delete(id);
     store.set("learned", [...learned]);
+    setWeak(card, !ok);
+    countStudy();
     study.recent.push(card);
     if (study.recent.length > 12) study.recent.shift();
     study.sinceQuiz++;
@@ -383,8 +493,8 @@
         const pick = q.opts[+b.dataset.i];
         const okBtn = [...view.querySelectorAll(".quiz-opts .btn")].find((x) => x.textContent === q.card.m);
         okBtn.classList.add("correct");
-        if (pick === q.card.m) quiz.score++;
-        else b.classList.add("wrong");
+        if (pick === q.card.m) { quiz.score++; setWeak(q.card, false); }
+        else { b.classList.add("wrong"); setWeak(q.card, true); }
         view.querySelectorAll(".quiz-opts .btn").forEach((x) => (x.onclick = null));
         setTimeout(() => { quiz.pos++; drawQuiz(); }, 900);
       };
@@ -411,7 +521,7 @@
 
   /* ===== プレイヤー ===== */
   const player = {
-    mode: null, book: null, back: null, idx: 0, playing: false, timer: null,
+    mode: null, book: null, back: null, key: null, idx: 0, playing: false, timer: null,
     reset() {
       this.playing = false;
       clearTimeout(this.timer);
@@ -424,13 +534,25 @@
     player.mode = mode;
     player.back = "books/" + mode;
     player.book = DATA.books[mode][+bookIdx];
-    player.idx = 0;
+    if (!player.book) { location.hash = "books/" + mode; return; }
+    player.key = "play/" + mode + "/" + bookIdx;
+    player.idx = restorePlayIdx();
     drawPlayer();
   };
+
+  function restorePlayIdx() {
+    const i = store.get("playPos", {})[player.key] | 0;
+    return i < player.book.sentences.length ? i : 0;
+  }
 
   function drawPlayer() {
     const b = player.book;
     const s = b.sentences[player.idx];
+    const pos = store.get("playPos", {});
+    pos[player.key] = player.idx;
+    store.set("playPos", pos);
+    const sh = player.mode === "shadowing";
+    saveLast(sh ? "🗣️" : "🎧", b.title, `${sh ? "シャドーイング" : "聞き流し"}｜${player.idx + 1} / ${b.sentences.length}文目`);
     const withJa = store.get("playJa", true);
     const loop = store.get("playLoop", false);
     const speed = store.get("playSpeed", "標準");
@@ -519,6 +641,7 @@
 
   /* ===== 翻訳 ===== */
   routes.translate = () => {
+    doTranslate.n++;
     const dir = store.get("transDir", "toForeign");
     const autoSpeak = store.get("transAutoSpeak", true);
     view.innerHTML = topbar("翻訳", "home") + `
@@ -573,6 +696,8 @@
     // 第二候補: MyMemory
     const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${tl}`);
     const json = await res.json();
+    // 上限超過などのエラー文もHTTP 200で返ってくるので、訳として表示しない
+    if (json.responseStatus != 200) throw new Error(json.responseDetails || "mymemory");
     return (json.responseData && json.responseData.translatedText || "").trim();
   }
 
@@ -582,6 +707,8 @@
     const t = (text || "").trim();
     if (!t || t.length > 26) return false;
     if (/[.!?。！？]\s*\S/.test(t)) return false;             // 文が2つ以上あれば単語ではない
+    // 中国語・韓国語は空白で区切られないことがあるので、文字数でも判定する
+    if ((C.mmLang === "zh" || C.mmLang === "ko") && t.replace(/[。！？.!?\s]/g, "").length > 8) return false;
     return t.split(/\s+/).filter(Boolean).length <= 3;
   }
 
@@ -592,8 +719,11 @@
     const esc2 = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // 語尾が変わった形（promise→promised, eat→eating, cat→cats）も同じ語とみなす。
     // ただし別の語（cat→category）には当たらないよう、よくある語尾だけを許す
-    const latin = /^[a-zà-ÿ' -]+$/i.test(n)
-      ? new RegExp(`(^|[^a-zà-ÿ'])${esc2}(s|es|d|ed|ing|r|rs)?([^a-zà-ÿ']|$)`, "i") : null;
+    // 短い語（he→her, an→and）は別の語になってしまうので、語尾変化は4文字以上の語だけ認める。
+    // アポストロフィは語の切れ目として扱う（L'eau の eau、I'm の I に当たるように）
+    const sfx = n.replace(/[^a-zà-ÿœæ]/gi, "").length >= 4 ? "(s|es|d|ed|ing|r|rs)?" : "(s|es)?";
+    const latin = /^[a-zà-ÿœæ'’ -]+$/i.test(n)
+      ? new RegExp(`(^|[^a-zà-ÿœæ])${esc2}${sfx}([^a-zà-ÿœæ]|$)`, "i") : null;
     // 漢字1文字は他の語の一部に紛れ込みやすい（「水」が「水果」に当たる等）ので拾い読みはしない
     const canScan = !!latin || n.length >= 2;
     return { n, canScan, test: (s) => (latin ? latin.test(String(s)) : String(s).toLowerCase().includes(n)) };
@@ -653,6 +783,15 @@
     } catch { return []; }
   }
 
+  // 例文キャッシュは古いものから捨てて200語までにする（保存領域を使い切らないように）
+  function cacheExamples(key, list) {
+    const keys = store.get("exKeys", []).filter((k) => k !== key);
+    keys.push(key);
+    while (keys.length > 200) store.remove(keys.shift());
+    store.set("exKeys", keys);
+    store.set(key, list);
+  }
+
   // 翻訳結果の下に例文カードを出す（収録データ→足りなければAIの順）
   async function showExamples(foreign) {
     const wrap = $("#exwrap");
@@ -665,7 +804,8 @@
         wrap.innerHTML = `<p class="note">例文をさがしています…</p>`;
         list = list.concat(await aiExamples(foreign, 3 - list.length)).slice(0, 3);
       }
-      if (list.length) store.set(key, list);
+      // AIで3件そろったとき（またはAIを使わない設定のとき）だけ保存。失敗・途中の結果は次回やり直す
+      if (list.length >= 3 || (!C.aiKey && list.length)) cacheExamples(key, list);
     }
     if (!list.length) { wrap.innerHTML = ""; return; }
     wrap.innerHTML = `<div class="card ex-box">
@@ -680,14 +820,18 @@
     });
   }
 
+  doTranslate.n = 0;
   async function doTranslate() {
     const text = $("#src").value.trim();
     if (!text) return;
     const dir = store.get("transDir", "toForeign");
+    const tok = ++doTranslate.n; // 翻訳中に画面を離れたり向きを切り替えたら、古い結果は捨てる
+    const stale = () => tok !== doTranslate.n || !$("#out");
     $("#go").disabled = true;
     $("#go").textContent = "翻訳中…";
     try {
       const out = await translateText(text, dir);
+      if (stale()) return;
       if (!out) throw new Error("empty");
       const foreign = dir === "toForeign" ? out : text;
       const ja = dir === "toForeign" ? text : out;
@@ -705,12 +849,12 @@
       $("#rsave").onclick = () => {
         const phrases = store.get("phrases", []);
         phrases.unshift({ ja, f: foreign, at: new Date().toISOString() });
-        store.set("phrases", phrases);
-        toast("保存しました");
+        toast(store.set("phrases", phrases) ? "保存しました" : "保存できませんでした（端末の保存容量がいっぱいです）");
       };
       if (store.get("transAutoSpeak", true)) speech.speak(foreign, C.lang, C.rateNormal);
       showExamples(foreign);
     } catch {
+      if (stale()) return;
       $("#out").innerHTML = `<p class="note" style="color:var(--ng)">翻訳できませんでした。少し時間をおいて、もう一度お試しください。</p>`;
     }
     $("#go").disabled = false;
@@ -851,7 +995,8 @@
     player.mode = "listening";
     player.back = "deck/" + id;
     player.book = { title: deck.title + "（例文）", sentences };
-    player.idx = 0;
+    player.key = "decklisten/" + id;
+    player.idx = restorePlayIdx();
     drawPlayer();
   };
 
@@ -979,8 +1124,17 @@ ${text}`;
     })
     .catch(() => {});
 
+  const needsDataNow = () => NEEDS_DATA.has((location.hash.slice(1) || "home").split("/")[0]);
+  render();
   fetch(C.dataUrl)
     .then((r) => r.json())
-    .then((d) => { DATA = d; render(); })
-    .catch(() => { view.innerHTML = `<div class="empty">データを読み込めませんでした。<br>再読み込みしてください。</div>`; });
+    .then((d) => { DATA = d; if (needsDataNow()) render(); })
+    .catch(() => { dataFailed = true; if (needsDataNow()) render(); });
+
+  // ホーム画面に追加したときのオフライン対応（sw.js はサイト直下に置き、全言語で共有する）
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register(new URL("../sw.js", location.href), { scope: new URL("../", location.href).pathname }).catch(() => {});
+    });
+  }
 })();

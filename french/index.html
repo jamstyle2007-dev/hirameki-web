@@ -11,7 +11,12 @@
 <meta property="og:image" content="https://apps.jack-invest.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#1e2982">
-<link rel="stylesheet" href="../shared/app.css?v=9">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../assets/icons/french-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="フランス語">
+<link rel="preload" href="../data/french.json" as="fetch" crossorigin="anonymous">
+<link rel="stylesheet" href="../shared/app.css?v=12">
 <script src="../shared/adsense.js?v=9"></script>
 </head>
 <body class="theme-france">
@@ -22,6 +27,7 @@
     <p>読み込み中…</p>
   </div>
 </main>
+<nav class="seo-links"><a href="words/">📖 フランス語単語一覧</a><a href="texts/">📝 教材の本文と訳</a></nav>
 <div class="toast" id="toast"></div>
 <script src="../shared/config.local.js"></script>
 <script>
@@ -45,7 +51,7 @@ window.APP_CONFIG = {
   aiKey: window.HIRAMEKI_AI_KEY || ""
 };
 </script>
-<script src="../shared/app.js?v=9"></script>
+<script src="../shared/app.js?v=12"></script>
 <div class="ad-bottom">
   <ins class="adsbygoogle" style="display:inline-block;width:320px;height:50px"
        data-ad-client="ca-pub-1152026485973831"

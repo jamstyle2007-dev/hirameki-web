@@ -1,0 +1,24 @@
+{
+  "name": "ひらめきフランス語",
+  "short_name": "フランス語",
+  "description": "ひらめきフランス語のWeb版。A1〜B2の単語カード、シャドーイング、聞き流し、日本語⇔フランス語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a12",
+  "theme_color": "#1e2982",
+  "icons": [
+    {
+      "src": "../assets/icons/french-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../assets/icons/french-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

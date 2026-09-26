@@ -1,0 +1,24 @@
+{
+  "name": "ひらめきスペイン語",
+  "short_name": "スペイン語",
+  "description": "ひらめきスペイン語のWeb版。A1〜C1の単語カード、シャドーイング、聞き流し、日本語⇔スペイン語の翻訳がすべて無料。インストール不要でスマホ・PCのブラウザからすぐ使えます。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a12",
+  "theme_color": "#d9461e",
+  "icons": [
+    {
+      "src": "../assets/icons/spanish-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "../assets/icons/spanish-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
