@@ -177,7 +177,13 @@
   }
 
   /* ===== ホーム ===== */
+  // 最後に学習していた場所（単語カード/教材/デッキ）。ホームの「続きから」に使う
+  function saveLast(icon, title, sub) {
+    store.set("last", { hash: location.hash.slice(1), icon, title, sub });
+  }
+
   routes.home = () => {
+    const last = store.get("last", null);
     view.innerHTML = `
       <div class="hero">
         <div class="app-icon">${C.icon}</div>
@@ -185,6 +191,11 @@
         <p>${C.tagline}</p>
       </div>
       <div class="menu">
+        ${last && last.hash ? `<button class="menu-item resume" id="resume">
+          <span class="icon">${esc(last.icon || "▶︎")}</span>
+          <span><span class="d">続きから</span><br><span class="t">${esc(last.title)}</span><br><span class="d">${esc(last.sub || "")}</span></span>
+          <span class="chev">›</span>
+        </button>` : ""}
         <button class="menu-item" onclick="location.hash='vocab'">
           <span class="icon">🃏</span>
           <span><span class="t">単語カード</span><br><span class="d">${esc(C.vocabDesc)}</span></span>
@@ -226,6 +237,7 @@
         <a href="${C.appStoreUrl}" target="_blank" rel="noopener">App Storeで「${esc(C.name)}」を見る</a><br><br>
         <a href="../privacy/">プライバシーポリシー</a>
       </div>`;
+    if (last && last.hash) $("#resume").onclick = () => (location.hash = last.hash);
   };
 
   /* ===== 単語カード: レベル選択 ===== */
@@ -254,8 +266,15 @@
       study.cards = cards;
       study.back = back;
       study.title = title;
-      study.order = shuffle(cards.map((_, i) => i));
-      study.pos = 0;
+      // 前回のシャッフル順と位置を復元（データの語数が変わっていたら作り直す）
+      const saved = store.get("studyPos." + id, null);
+      if (saved && Array.isArray(saved.order) && saved.order.length === cards.length) {
+        study.order = saved.order;
+        study.pos = Math.min(saved.pos | 0, cards.length - 1);
+      } else {
+        study.order = shuffle(cards.map((_, i) => i));
+        study.pos = 0;
+      }
       study.sinceQuiz = 0;
       study.recent = [];
     }
@@ -281,6 +300,8 @@
     }
     const card = cards[study.order[study.pos]];
     const done = cards.filter((c) => learned.has(study.id + "_" + c.w)).length;
+    store.set("studyPos." + study.id, { order: study.order, pos: study.pos });
+    saveLast("🃏", study.title, `${study.pos + 1} / ${cards.length}枚目｜覚えた ${done}語`);
 
     view.innerHTML = topbar(study.title, study.back) + `
       <div class="progress-line">
@@ -411,7 +432,7 @@
 
   /* ===== プレイヤー ===== */
   const player = {
-    mode: null, book: null, back: null, idx: 0, playing: false, timer: null,
+    mode: null, book: null, back: null, key: null, idx: 0, playing: false, timer: null,
     reset() {
       this.playing = false;
       clearTimeout(this.timer);
@@ -424,13 +445,25 @@
     player.mode = mode;
     player.back = "books/" + mode;
     player.book = DATA.books[mode][+bookIdx];
-    player.idx = 0;
+    if (!player.book) { location.hash = "books/" + mode; return; }
+    player.key = "play/" + mode + "/" + bookIdx;
+    player.idx = restorePlayIdx();
     drawPlayer();
   };
+
+  function restorePlayIdx() {
+    const i = store.get("playPos", {})[player.key] | 0;
+    return i < player.book.sentences.length ? i : 0;
+  }
 
   function drawPlayer() {
     const b = player.book;
     const s = b.sentences[player.idx];
+    const pos = store.get("playPos", {});
+    pos[player.key] = player.idx;
+    store.set("playPos", pos);
+    const sh = player.mode === "shadowing";
+    saveLast(sh ? "🗣️" : "🎧", b.title, `${sh ? "シャドーイング" : "聞き流し"}｜${player.idx + 1} / ${b.sentences.length}文目`);
     const withJa = store.get("playJa", true);
     const loop = store.get("playLoop", false);
     const speed = store.get("playSpeed", "標準");
@@ -851,7 +884,8 @@
     player.mode = "listening";
     player.back = "deck/" + id;
     player.book = { title: deck.title + "（例文）", sentences };
-    player.idx = 0;
+    player.key = "decklisten/" + id;
+    player.idx = restorePlayIdx();
     drawPlayer();
   };
 

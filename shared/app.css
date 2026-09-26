@@ -126,6 +126,7 @@ body.theme-spain { --accent: #fb923c; }
 .menu-item .t { font-size: 1.25rem; font-weight: 800; }
 .menu-item .d { font-size: 0.95rem; font-weight: 600; color: var(--fg-sub); margin-top: 3px; line-height: 1.5; }
 .menu-item .chev { margin-left: auto; color: var(--fg-sub); font-size: 1.3rem; }
+.menu-item.resume { border-color: var(--accent); background: rgba(77, 163, 255, 0.16); }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
