@@ -166,10 +166,20 @@
   function nav(hash) { location.hash = hash; }
   window.addEventListener("hashchange", render);
 
+  // 単語データ（最大130KB）が要る画面。ホームや翻訳などはデータを待たずにすぐ表示する
+  const NEEDS_DATA = new Set(["vocab", "study", "weak", "books", "play"]);
+  let dataFailed = false;
+
   function render() {
     speech.stop();
     player.reset();
     const [name, ...args] = (location.hash.slice(1) || "home").split("/");
+    if (!DATA && NEEDS_DATA.has(name)) {
+      view.innerHTML = topbar("", "home") + (dataFailed
+        ? `<div class="empty">データを読み込めませんでした。<br>再読み込みしてください。</div>`
+        : `<div class="empty">読み込み中…</div>`);
+      return;
+    }
     (routes[name] || routes.home)(...args.map(decodeURIComponent));
     window.scrollTo(0, 0);
   }
@@ -1114,10 +1124,12 @@ ${text}`;
     })
     .catch(() => {});
 
+  const needsDataNow = () => NEEDS_DATA.has((location.hash.slice(1) || "home").split("/")[0]);
+  render();
   fetch(C.dataUrl)
     .then((r) => r.json())
-    .then((d) => { DATA = d; render(); })
-    .catch(() => { view.innerHTML = `<div class="empty">データを読み込めませんでした。<br>再読み込みしてください。</div>`; });
+    .then((d) => { DATA = d; if (needsDataNow()) render(); })
+    .catch(() => { dataFailed = true; if (needsDataNow()) render(); });
 
   // ホーム画面に追加したときのオフライン対応（sw.js はサイト直下に置き、全言語で共有する）
   if ("serviceWorker" in navigator) {

@@ -20,7 +20,7 @@ import shutil
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = "https://apps.jack-invest.com"
 PER_PAGE = 50
-ASSET_V = "11"  # shared/app.css・seo.js のキャッシュ番号
+ASSET_V = "12"  # shared/app.css・seo.js のキャッシュ番号
 LANGS = ["eikaiwa", "chinese", "korean", "french", "spanish"]
 LEVELS = [("beginner", "初級"), ("intermediate", "中級"), ("advanced", "上級")]
 KINDS = [("shadowing", "シャドーイング", "🗣️"), ("listening", "聞き流し", "🎧")]
