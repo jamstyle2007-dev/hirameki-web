@@ -222,8 +222,9 @@
         </button>
       </div>
       <div class="footer">
-        iPhone版も公開中です。<br>
-        <a href="${C.appStoreUrl}" target="_blank" rel="noopener">App Storeで「${esc(C.name)}」を見る</a><br><br>
+        iPhoneアプリ「ひらめき語学」も<br>公開中です。<br>
+        ${esc(C.langLabel)}をふくむ9ヶ国語を、<br>1本のアプリで学べます。<br>
+        <a href="${C.appStoreUrl}" target="_blank" rel="noopener">App Storeで「ひらめき語学」を見る</a><br><br>
         <a href="../privacy/">プライバシーポリシー</a>
       </div>`;
   };
