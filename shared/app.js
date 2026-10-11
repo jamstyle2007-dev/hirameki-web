@@ -776,7 +776,29 @@
     if (f) readImage(f); else toast("画像ファイルを選んでください");
   });
 
+  // 訳した結果をこの端末に貯めておく（同じ文を訳し直さない＝AI翻訳の回数を節約する）
+  const TR_CACHE_MAX = 300;
+  function trCacheKey(text, dir) { return dir + "\u0001" + text; }
+  function trCacheGet(text, dir) {
+    const c = store.get("trCache", {});
+    const v = c[trCacheKey(text, dir)];
+    return v && v.out ? v : null;
+  }
+  function trCacheSet(text, dir, out, byAI) {
+    const c = store.get("trCache", {});
+    c[trCacheKey(text, dir)] = { out, ai: !!byAI, at: Date.now() };
+    const keys = Object.keys(c);
+    if (keys.length > TR_CACHE_MAX) {
+      keys.sort((a, b) => (c[a].at || 0) - (c[b].at || 0)).slice(0, keys.length - TR_CACHE_MAX)
+        .forEach((k) => delete c[k]);
+    }
+    try { store.set("trCache", c); } catch { /* 容量オーバーなら諦める */ }
+  }
+
+  // 返り値は { out, ai }。ai が false のときは機械翻訳なので、画面に但し書きを出す
   async function translateText(text, dir) {
+    const hit = trCacheGet(text, dir);
+    if (hit) return { out: hit.out, ai: hit.ai };
     const sl = dir === "toForeign" ? "ja" : C.mmLang;
     const tl = dir === "toForeign" ? C.mmLang : "ja";
     // 第一候補: AI翻訳（Gemini・自然な意訳）。APIキー設定時のみ有効
@@ -784,7 +806,12 @@
       try {
         const from = dir === "toForeign" ? "日本語" : C.aiName;
         const to = dir === "toForeign" ? C.aiName : "日本語";
-        const prompt = `あなたはプロの翻訳者です。次の${from}の文を、ネイティブが実際に使う自然で正確な${to}に翻訳してください。訳文だけを出力してください。\n\n${text}`;
+        const prompt = `あなたはプロの翻訳者です。次の${from}の文を、ネイティブが実際に使う自然で正確な${to}に翻訳してください。
+・買い物、旅行、食事、仕事など、日常の場面で交わされる会話として読んでください
+・いくつもの意味がある言葉は、その場面でいちばんよく使われる意味を選んでください（例：中国語の「码数」は衣類や靴の「サイズ」）
+・訳文だけを出力してください
+
+${text}`;
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${C.aiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -793,20 +820,23 @@
         const json = await res.json();
         const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
         const out = parts.map((p) => p.text || "").join("").trim();
-        if (out) return out;
+        if (out) { trCacheSet(text, dir, out, true); return { out, ai: true }; }
       } catch { /* フォールバックへ */ }
     }
-    // 第二候補: Google翻訳の公開エンドポイント
-    try {
-      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`);
-      const json = await res.json();
-      const out = (json[0] || []).map((seg) => seg[0]).join("").trim();
-      if (out) return out;
-    } catch { /* フォールバックへ */ }
-    // 第二候補: MyMemory
-    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sl}|${tl}`);
-    const json = await res.json();
-    return (json.responseData && json.responseData.translatedText || "").trim();
+    // 第二候補: Google翻訳の公開エンドポイント（混み合うと弾かれるので一度だけ待って入れ直す）
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`);
+        if (res.ok) {
+          const json = await res.json();
+          const out = (json[0] || []).map((seg) => seg[0]).join("").trim();
+          if (out) { trCacheSet(text, dir, out, false); return { out, ai: false }; }
+        }
+      } catch { /* 次へ */ }
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
+    }
+    // ここまで来たら訳せない。MyMemory は誤訳が多かったので使わない
+    return { out: "", ai: false };
   }
 
   /* ===== 例文（翻訳した語の使い方を見せる） ===== */
@@ -866,6 +896,10 @@
   // 足りない分をAIに作ってもらう（キー未設定・失敗時は空を返す）
   async function aiExamples(word, want) {
     if (!C.aiKey || want <= 0) return [];
+    // 一度作った例文はこの端末に残す（AI翻訳と同じ枠を使うので、作り直さない）
+    const exCache = store.get("exCache", {});
+    const ck = word + "\u0001" + want;
+    if (Array.isArray(exCache[ck])) return exCache[ck];
     const prompt = `${C.aiName}の「${word}」を使った例文を${want}つ作ってください。
 ・日常でよく使う、短くてやさしい文にする
 ・それぞれに自然な日本語訳をつける
@@ -881,8 +915,16 @@
       const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
       const raw = parts.map((p) => p.text || "").join("");
       const arr = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));
-      return arr.filter((x) => x && x.t)
+      const made = arr.filter((x) => x && x.t)
         .map((x) => ({ t: String(x.t).trim(), ja: String(x.ja || "").trim() })).slice(0, want);
+      if (made.length) {
+        const c = store.get("exCache", {});
+        c[ck] = made;
+        const ks = Object.keys(c);
+        if (ks.length > 200) ks.slice(0, ks.length - 200).forEach((k) => delete c[k]);
+        try { store.set("exCache", c); } catch { /* 容量オーバーなら諦める */ }
+      }
+      return made;
     } catch { return []; }
   }
 
@@ -1008,13 +1050,20 @@
       }
     }
     try {
-      const out = await translateText(text, dir);
+      const r = await translateText(text, dir);
+      const out = r.out;
       if (!out) throw new Error("empty");
       const foreign = dir === "toForeign" ? out : text;
       const ja = dir === "toForeign" ? text : out;
+      // AI翻訳が使えなかったときは、機械翻訳だと分かるようにしておく
+      const machineNote = r.ai ? "" :
+        `<p class="note" style="margin:10px 0 0;color:var(--muted,#777);font-size:13px">
+           ※ ただいまAI翻訳が混み合っているため、機械翻訳で表示しています。意味がずれることがあるので、大事な場面では時間をおいて試し直してください。
+         </p>`;
       $("#out").innerHTML = `
         <div class="card result-box">
           <div class="res">${esc(out)}</div>
+          ${machineNote}
           <div style="height:14px"></div>
           <div class="row">
             <button class="btn speak small" id="rspeak">🔊 発音</button>
