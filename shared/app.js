@@ -776,6 +776,50 @@
     if (f) readImage(f); else toast("画像ファイルを選んでください");
   });
 
+  // AI翻訳の無料枠は「1日20回・モデルごと」。1つが尽きたら次のモデルに回して使い切る
+  // 並びは実測した訳の良さ順。中国語「先报码数给我最好」で確かめた（码数＝衣類のサイズ）
+  //   gemini-flash-latest        先にサイズを教えていただけると助かります  ◎
+  //   gemini-flash-lite-latest   まずはサイズを教えてもらえると助かります  ◎
+  //   gemini-2.5-flash-lite      先にサイズを教えていただけると助かります  ◎
+  //   gemini-3.5-flash-lite      まずはサイズ（番号）を…                   ○
+  //   gemini-3.1-flash-lite      まずはコード番号を…                       ✗ 使わない
+  //   gemini-2.5-flash           このキーでは404                            ✗ 使わない
+  const AI_MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-3.5-flash-lite"];
+  // その日に尽きたモデルは覚えておき、翌日まで呼ばない（無駄な往復を省く）
+  function aiDeadToday() {
+    const d = store.get("aiDead", {});
+    const today = new Date().toISOString().slice(0, 10);
+    return d.day === today ? (d.models || []) : [];
+  }
+  function markAiDead(model) {
+    const today = new Date().toISOString().slice(0, 10);
+    const d = store.get("aiDead", {});
+    const models = d.day === today ? (d.models || []) : [];
+    if (!models.includes(model)) models.push(model);
+    try { store.set("aiDead", { day: today, models }); } catch { /* 無視 */ }
+  }
+  async function askGemini(prompt, temperature) {
+    if (!C.aiKey) return "";
+    const dead = aiDeadToday();
+    for (const model of AI_MODELS) {
+      if (dead.includes(model)) continue;
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${C.aiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature } }),
+        });
+        if (res.status === 429) { markAiDead(model); continue; }   // 枠切れ。次のモデルへ
+        if (!res.ok) continue;
+        const json = await res.json();
+        const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
+        const out = parts.map((p) => p.text || "").join("").trim();
+        if (out) return out;
+      } catch { /* 次のモデルへ */ }
+    }
+    return "";
+  }
+
   // 訳した結果をこの端末に貯めておく（同じ文を訳し直さない＝AI翻訳の回数を節約する）
   const TR_CACHE_MAX = 300;
   function trCacheKey(text, dir) { return dir + "\u0001" + text; }
@@ -812,14 +856,7 @@
 ・訳文だけを出力してください
 
 ${text}`;
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${C.aiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2 } }),
-        });
-        const json = await res.json();
-        const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
-        const out = parts.map((p) => p.text || "").join("").trim();
+        const out = await askGemini(prompt, 0.2);
         if (out) { trCacheSet(text, dir, out, true); return { out, ai: true }; }
       } catch { /* フォールバックへ */ }
     }
@@ -906,14 +943,8 @@ ${text}`;
 ・次の形のJSON配列だけを出力し、説明文は書かないでください
 [{"t":"${C.aiName}の例文","ja":"日本語訳"}]`;
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${C.aiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } }),
-      });
-      const json = await res.json();
-      const parts = (((json.candidates || [])[0] || {}).content || {}).parts || [];
-      const raw = parts.map((p) => p.text || "").join("");
+      const raw = await askGemini(prompt, 0.4);
+      if (!raw) return [];
       const arr = JSON.parse(raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1));
       const made = arr.filter((x) => x && x.t)
         .map((x) => ({ t: String(x.t).trim(), ja: String(x.ja || "").trim() })).slice(0, want);
